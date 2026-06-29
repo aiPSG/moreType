@@ -69,8 +69,13 @@ export function GridEditor({
       onPointerUp={() => (paint.current = null)}
       onPointerLeave={() => (paint.current = null)}
     >
-      {/* Artwork (with grid forced on while editing). */}
-      <GlyphArt letter={letter} uid={`editor-${letter.id}`} forceShowGrid />
+      {/* Artwork. The grid follows the "Show grid" setting so it can be
+          toggled off while designing. */}
+      <GlyphArt
+        letter={letter}
+        uid={`editor-${letter.id}`}
+        forceShowGrid={s.showGrid}
+      />
 
       {/* Click targets for every cell. */}
       <g>

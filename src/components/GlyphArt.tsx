@@ -8,6 +8,7 @@ import {
   parseKey,
   shapePath,
 } from "../lib/geometry";
+import { componentUnionPath } from "../lib/metaball";
 
 /**
  * Builds the SVG <filter> that produces the metaball ("goo") look and,
@@ -116,12 +117,16 @@ export function GlyphArt({
   const filterId = `goo-${uid}`;
   const comps = connectedComponents(letter.active, letter.connections);
   const showGrid = forceShowGrid ?? s.showGrid;
+  // Saved letters from before this option default to the filter look.
+  const connectMode = s.connectMode ?? "goo";
 
   return (
     <Fragment>
-      <defs>
-        <GooFilter id={filterId} letter={letter} />
-      </defs>
+      {connectMode === "goo" && (
+        <defs>
+          <GooFilter id={filterId} letter={letter} />
+        </defs>
+      )}
 
       {showGrid && (
         <g stroke={s.gridColor} strokeWidth={1.5} opacity={0.9}>
@@ -163,13 +168,30 @@ export function GlyphArt({
           );
         }
 
-        // Connected cells: fuse bodies + necks via the goo filter.
+        // Connected cells.
         const compSet = new Set(comp);
         const connsInComp = letter.connections.filter(
           (cn) =>
             compSet.has(cellKey(cn.a.c, cn.a.r)) &&
             compSet.has(cellKey(cn.b.c, cn.b.r)),
         );
+
+        // Geometry mode: one boolean-union path → crisp, uniform outline.
+        if (connectMode === "geometry") {
+          const d = componentUnionPath(s, layout, comp, connsInComp);
+          return (
+            <path
+              key={`comp-${i}`}
+              d={d}
+              fill={s.fill ? s.fillColor : "none"}
+              stroke={s.outline ? s.outlineColor : "none"}
+              strokeWidth={s.outline ? s.outlineWidth * CELL : 0}
+              strokeLinejoin="round"
+            />
+          );
+        }
+
+        // Goo mode: fuse bodies + necks via the SVG filter.
         const neckW = s.connectionWidth * layout.contentRadius * 2 * 0.9 || 1;
         return (
           <g key={`comp-${i}`} filter={`url(#${filterId})`}>

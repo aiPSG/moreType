@@ -30,6 +30,7 @@ export const defaultSettings = (cols = 4, rows = 5): LetterSettings => ({
   gapY: 0.25,
   contentScale: 0.7,
   connectionWidth: 0.55,
+  connectMode: "geometry",
   goo: 0.6,
   fill: true,
   fillColor: "#111111",

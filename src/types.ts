@@ -36,6 +36,15 @@ export interface LetterSettings {
   /** Thickness of a connection neck relative to content size (0–1). */
   connectionWidth: number;
 
+  /**
+   * How connected cells are merged:
+   *  - "geometry": real boolean-union geometry (crisp, uniform outline, exact
+   *    body sizes; metaball fillets for circles, capsule necks otherwise).
+   *  - "goo": the SVG blur/threshold filter (softer, more organic, but blurs
+   *    the bodies and outline).
+   */
+  connectMode: "geometry" | "goo";
+
   /** Strength of the metaball merge (0 = crisp, 1 = very gooey). */
   goo: number;
 

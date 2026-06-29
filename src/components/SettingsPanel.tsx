@@ -44,6 +44,7 @@ export function SettingsPanel({
   onChange: (next: Letter) => void;
 }) {
   const s = letter.settings;
+  const connectMode = s.connectMode ?? "goo";
   const update = (patch: Partial<LetterSettings>) =>
     onChange({ ...letter, settings: { ...s, ...patch } });
 
@@ -131,9 +132,28 @@ export function SettingsPanel({
       </section>
 
       <section>
-        <h3>Connections (metaball)</h3>
+        <h3>Connections</h3>
+        <label className="field">
+          <span className="field-label">Connection style</span>
+          <div className="seg">
+            <button
+              className={connectMode === "geometry" ? "active" : ""}
+              onClick={() => update({ connectMode: "geometry" })}
+              title="Crisp boolean-union geometry: uniform outline, exact body sizes"
+            >
+              geometry
+            </button>
+            <button
+              className={connectMode === "goo" ? "active" : ""}
+              onClick={() => update({ connectMode: "goo" })}
+              title="SVG blur/threshold filter: softer, more organic"
+            >
+              goo filter
+            </button>
+          </div>
+        </label>
         <Slider
-          label="Neck width"
+          label={connectMode === "geometry" ? "Neck spread" : "Neck width"}
           value={s.connectionWidth}
           min={0.1}
           max={1}
@@ -142,7 +162,7 @@ export function SettingsPanel({
           onChange={(v) => update({ connectionWidth: v })}
         />
         <Slider
-          label="Goo strength"
+          label={connectMode === "geometry" ? "Fillet curve" : "Goo strength"}
           value={s.goo}
           min={0}
           max={1.5}
