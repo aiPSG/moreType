@@ -8,7 +8,7 @@ import {
   parseKey,
   shapePath,
 } from "../lib/geometry";
-import { componentUnionPath } from "../lib/metaball";
+import { componentUnionPath, gapPath } from "../lib/metaball";
 
 /**
  * Builds the SVG <filter> that produces the metaball ("goo") look and,
@@ -129,19 +129,16 @@ export function GlyphArt({
       )}
 
       {showGrid && (
-        <g stroke={s.gridColor} strokeWidth={1.5} opacity={0.9}>
+        <g stroke={s.gridColor} strokeWidth={1.5} opacity={0.9} fill="none">
           {Array.from({ length: s.cols }).map((_, c) =>
             Array.from({ length: s.rows }).map((__, r) => {
               const { x, y } = layout.center(c, r);
-              const h = CELL / 2;
+              // Grid cells take the selected shape (circle/diamond/triangle/
+              // square), drawn at the full cell size as a guide.
               return (
-                <rect
+                <path
                   key={`g-${c}-${r}`}
-                  x={x - h}
-                  y={y - h}
-                  width={CELL}
-                  height={CELL}
-                  fill="none"
+                  d={shapePath(s.cellShape, x, y, CELL / 2)}
                 />
               );
             }),
@@ -225,6 +222,23 @@ export function GlyphArt({
               );
             })}
           </g>
+        );
+      })}
+
+      {/* Negative-space gaps (static fills, independent of cells). */}
+      {(letter.gaps ?? []).map((k) => {
+        const { c, r } = parseKey(k);
+        const d = gapPath(s, layout, c, r);
+        if (!d) return null;
+        return (
+          <path
+            key={`gap-${k}`}
+            d={d}
+            fill={s.fill ? s.fillColor : "none"}
+            stroke={s.outline ? s.outlineColor : "none"}
+            strokeWidth={s.outline ? s.outlineWidth * CELL : 0}
+            strokeLinejoin="round"
+          />
         );
       })}
     </Fragment>

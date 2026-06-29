@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Alphabet, Letter } from "../types";
-import { computeLayout } from "./geometry";
+import { CELL, computeLayout, contentColumnSpan } from "./geometry";
 import { GlyphArt } from "../components/GlyphArt";
 
 export interface ComposeOptions {
@@ -34,6 +34,10 @@ interface Placed {
   w: number;
   h: number;
   uid: string;
+  /** Per-glyph viewBox, cropped horizontally to the glyph's actual content. */
+  vbMinX: number;
+  vbW: number;
+  vbH: number;
 }
 
 interface Composition {
@@ -82,10 +86,32 @@ export function composeText(
         return;
       }
       const layout = computeLayout(letter.settings);
-      const aspect =
-        (layout.width + layout.pad * 2) / (layout.height + layout.pad * 2);
-      const w = H * aspect;
-      placed.push({ letter, x, y, w, h: H, uid: `c${li}_${ci}` });
+      const span = contentColumnSpan(letter);
+      if (!span) {
+        // Empty glyph behaves like a space.
+        x += H * opts.spaceWidth;
+        return;
+      }
+      // Crop horizontally to the glyph's real content so empty grid columns
+      // don't inflate spacing; keep full height for a consistent baseline.
+      const vbH = layout.height + layout.pad * 2;
+      const bearing = CELL * 0.12;
+      const leftX = layout.pad + span.minCol * layout.pitchX;
+      const rightX = layout.pad + span.maxCol * layout.pitchX + CELL;
+      const vbMinX = leftX - bearing;
+      const vbW = rightX - leftX + bearing * 2;
+      const w = (H * vbW) / vbH;
+      placed.push({
+        letter,
+        x,
+        y,
+        w,
+        h: H,
+        uid: `c${li}_${ci}`,
+        vbMinX,
+        vbW,
+        vbH,
+      });
       x += w + H * opts.letterSpacing;
     });
     maxWidth = Math.max(maxWidth, x);
@@ -129,9 +155,6 @@ export function CompositionSVG({
         />
       )}
       {comp.placed.map((pl) => {
-        const layout = computeLayout(pl.letter.settings);
-        const vbW = layout.width + layout.pad * 2;
-        const vbH = layout.height + layout.pad * 2;
         return (
           <svg
             key={pl.uid}
@@ -139,7 +162,7 @@ export function CompositionSVG({
             y={p + pl.y}
             width={pl.w}
             height={pl.h}
-            viewBox={`0 0 ${vbW} ${vbH}`}
+            viewBox={`${pl.vbMinX} 0 ${pl.vbW} ${pl.vbH}`}
             overflow="visible"
           >
             {/* Never show the editing grid in exports. */}

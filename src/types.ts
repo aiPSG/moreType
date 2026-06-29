@@ -69,6 +69,13 @@ export interface Letter {
   name: string;
   /** Active cells, as "c,r" keys. */
   active: string[];
+  /**
+   * Active negative-space "gap" cells, as "c,r" keys. A gap (c,r) sits at the
+   * interior vertex shared by cells (c,r),(c+1,r),(c,r+1),(c+1,r+1) and fills
+   * the interstitial shape between them. May be absent on letters saved before
+   * this feature.
+   */
+  gaps?: string[];
   /** Connections between active cells. */
   connections: Connection[];
   settings: LetterSettings;

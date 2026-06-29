@@ -92,7 +92,7 @@ export function Composer() {
             <span className="field-label">Letter spacing</span>
             <input
               type="range"
-              min={0}
+              min={-0.5}
               max={0.6}
               step={0.02}
               value={opts.letterSpacing}

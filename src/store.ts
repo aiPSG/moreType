@@ -14,6 +14,7 @@ export function newLetter(settings?: LetterSettings): Letter {
     id: uid(),
     name: "Untitled",
     active: [],
+    gaps: [],
     connections: [],
     settings: settings ?? defaultSettings(),
     createdAt: now,
@@ -69,6 +70,7 @@ export const store = {
       id: uid(),
       name: "Untitled",
       active: [],
+      gaps: [],
       connections: [],
       settings: settings ?? defaultSettings(),
       createdAt: now,
@@ -190,6 +192,15 @@ export function toggleCell(letter: Letter, key: string): Letter {
       })
     : letter.connections;
   return { ...letter, active, connections };
+}
+
+export function toggleGap(letter: Letter, key: string): Letter {
+  const gaps = letter.gaps ?? [];
+  const has = gaps.includes(key);
+  return {
+    ...letter,
+    gaps: has ? gaps.filter((k) => k !== key) : [...gaps, key],
+  };
 }
 
 export function toggleConnection(letter: Letter, conn: Connection): Letter {

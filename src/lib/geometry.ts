@@ -1,4 +1,4 @@
-import type { Cell, Connection, LetterSettings } from "../types";
+import type { Cell, Connection, Letter, LetterSettings } from "../types";
 
 /** Base size of a single cell box in internal SVG units. */
 export const CELL = 100;
@@ -74,6 +74,36 @@ export const computeLayout = (s: LetterSettings): Layout => {
     }),
   };
 };
+
+/** Center of a gap (interior vertex) shared by 4 cells starting at (gc,gr). */
+export const gapCenter = (layout: Layout, gc: number, gr: number) => {
+  const c = layout.center(gc, gr);
+  return { x: c.x + layout.pitchX / 2, y: c.y + layout.pitchY / 2 };
+};
+
+/**
+ * The column range actually occupied by a letter's content (cells + gaps),
+ * used to trim the empty grid columns when composing so letters sit at their
+ * true widths. Returns null for an empty letter.
+ */
+export function contentColumnSpan(
+  letter: Letter,
+): { minCol: number; maxCol: number } | null {
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const k of letter.active) {
+    const { c } = parseKey(k);
+    lo = Math.min(lo, c);
+    hi = Math.max(hi, c);
+  }
+  for (const k of letter.gaps ?? []) {
+    const { c } = parseKey(k);
+    lo = Math.min(lo, c);
+    hi = Math.max(hi, c + 1); // a gap spans columns c..c+1
+  }
+  if (lo > hi) return null;
+  return { minCol: lo, maxCol: hi };
+}
 
 /**
  * Group active cells into connected components using the connection graph.

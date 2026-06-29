@@ -168,6 +168,36 @@ body {
   opacity: 1;
 }
 
+/* ---- Gap (negative-space) targets ----------------------------------- */
+.gap-hit {
+  cursor: pointer;
+}
+.gap-hit:hover {
+  fill: rgba(79, 70, 229, 0.07);
+}
+.gap-dot {
+  pointer-events: none;
+}
+.gap-dot.off {
+  fill: #fff;
+  stroke: var(--accent);
+  stroke-width: 2;
+  opacity: 0.5;
+}
+.gap-dot.on {
+  fill: var(--accent);
+  opacity: 0.9;
+}
+.gap-handle:hover .gap-dot {
+  opacity: 1;
+}
+
+/* ---- Editor mode toggle --------------------------------------------- */
+.mode-toggle {
+  max-width: 280px;
+  margin-bottom: 4px;
+}
+
 /* ---- Settings panel -------------------------------------------------- */
 .settings section {
   margin-bottom: 18px;

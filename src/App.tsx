@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Letter } from "./types";
 import { newLetter, store, useStore } from "./store";
-import { GridEditor } from "./components/GridEditor";
+import { GridEditor, type EditMode } from "./components/GridEditor";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { AlphabetPanel } from "./components/AlphabetPanel";
 import { Composer } from "./components/Composer";
@@ -12,6 +12,7 @@ type Tab = "design" | "alphabets" | "compose";
 export default function App() {
   const state = useStore((s) => s);
   const [tab, setTab] = useState<Tab>("design");
+  const [editMode, setEditMode] = useState<EditMode>("cells");
   const [working, setWorking] = useState<Letter>(() => newLetter());
   const [assignChar, setAssignChar] = useState("");
   const [assignAlphabet, setAssignAlphabet] = useState(
@@ -80,12 +81,31 @@ export default function App() {
           </aside>
 
           <main className="center">
+            <div className="mode-toggle seg">
+              <button
+                className={editMode === "cells" ? "active" : ""}
+                onClick={() => setEditMode("cells")}
+              >
+                Cells
+              </button>
+              <button
+                className={editMode === "gaps" ? "active" : ""}
+                onClick={() => setEditMode("gaps")}
+              >
+                Gaps (between)
+              </button>
+            </div>
             <div className="editor-wrap">
-              <GridEditor letter={working} onChange={setWorking} />
+              <GridEditor
+                letter={working}
+                onChange={setWorking}
+                mode={editMode}
+              />
             </div>
             <p className="hint">
-              Click or drag cells to build a glyph. Click the dots between
-              neighbouring cells to fuse them into a metaball.
+              {editMode === "cells"
+                ? "Click or drag cells to build a glyph. Click the dots between neighbouring cells to fuse them into a metaball."
+                : "Click or drag the in-between spots to fill the negative-space shapes between cells."}
             </p>
           </main>
 

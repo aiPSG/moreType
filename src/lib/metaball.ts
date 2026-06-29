@@ -7,15 +7,21 @@ import type { Layout } from "./geometry";
 // *default* export. Depending on the bundler, the callable shows up either on
 // the namespace directly or under `.default`, so resolve it defensively — using
 // the wrong one silently yields `union is not a function` at runtime.
-type UnionFn = (
+type ClipFn = (
   geom: number[][][],
   ...geoms: number[][][][]
 ) => number[][][][];
-const ns = polygonClippingNS as unknown as {
-  union?: UnionFn;
-  default?: { union?: UnionFn };
+const nsRaw = polygonClippingNS as unknown as {
+  union?: ClipFn;
+  difference?: ClipFn;
+  default?: { union?: ClipFn; difference?: ClipFn };
 };
-const union: UnionFn = (ns.union ?? ns.default?.union) as UnionFn;
+const pc = (nsRaw.union ? nsRaw : nsRaw.default) as {
+  union: ClipFn;
+  difference: ClipFn;
+};
+const union: ClipFn = pc.union;
+const difference: ClipFn = pc.difference;
 
 // ---------------------------------------------------------------------------
 // Pure-geometry connections.
@@ -252,5 +258,39 @@ export function componentUnionPath(
 
   let d = "";
   for (const poly of merged) for (const ring of poly) d += ringToSubpath(ring) + " ";
+  return d.trim();
+}
+
+/**
+ * The negative-space "gap" shape around interior vertex (gc,gr): the square
+ * spanning the four surrounding cell centers, minus those four cell shapes.
+ * For circles this yields the concave four-cornered shape between them; it
+ * automatically follows whatever cell shape is selected. Returns "" if the
+ * shapes leave no gap (e.g. squares at 100%).
+ */
+export function gapPath(
+  s: LetterSettings,
+  layout: Layout,
+  gc: number,
+  gr: number,
+): string {
+  const r = layout.contentRadius;
+  const corners = [
+    layout.center(gc, gr),
+    layout.center(gc + 1, gr),
+    layout.center(gc + 1, gr + 1),
+    layout.center(gc, gr + 1),
+  ];
+  const square: number[][] = corners.map((c) => [c.x, c.y]);
+  const holes = corners.map((c) => [bodyRing(s.cellShape, c.x, c.y, r)]);
+  let res: number[][][][];
+  try {
+    res = difference([square], ...holes);
+  } catch (e) {
+    console.warn("[metaball] gap difference failed:", e);
+    return "";
+  }
+  let d = "";
+  for (const poly of res) for (const ring of poly) d += ringToSubpath(ring) + " ";
   return d.trim();
 }
