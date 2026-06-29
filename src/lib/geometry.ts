@@ -168,12 +168,11 @@ export function shapePath(
       return `M ${cx} ${cy - radius} L ${cx + radius} ${cy} L ${cx} ${
         cy + radius
       } L ${cx - radius} ${cy} Z`;
-    case "triangle": {
-      // Equilateral-ish, pointing up, centered on (cx, cy).
-      const h = radius * 1.4;
-      return `M ${cx} ${cy - h} L ${cx + radius * 1.2} ${cy + h * 0.7} L ${
-        cx - radius * 1.2
-      } ${cy + h * 0.7} Z`;
-    }
+    case "triangle":
+      // Fits exactly within the cell box (±radius) so triangles tile without
+      // overlapping when the gap is 0.
+      return `M ${cx} ${cy - radius} L ${cx + radius} ${cy + radius} L ${
+        cx - radius
+      } ${cy + radius} Z`;
   }
 }

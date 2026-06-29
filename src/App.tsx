@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Letter } from "./types";
 import { newLetter, store, useStore } from "./store";
 import { GridEditor, type EditMode } from "./components/GridEditor";
@@ -13,7 +13,23 @@ export default function App() {
   const state = useStore((s) => s);
   const [tab, setTab] = useState<Tab>("design");
   const [editMode, setEditMode] = useState<EditMode>("cells");
+  const [showHandles, setShowHandles] = useState(true);
+  const [theme, setTheme] = useState<"light" | "dark">(
+    () =>
+      (typeof localStorage !== "undefined" &&
+        (localStorage.getItem("moretype.theme") as "light" | "dark")) ||
+      "light",
+  );
   const [working, setWorking] = useState<Letter>(() => newLetter());
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem("moretype.theme", theme);
+    } catch {
+      /* ignore */
+    }
+  }, [theme]);
   const [assignChar, setAssignChar] = useState("");
   const [assignAlphabet, setAssignAlphabet] = useState(
     state.activeAlphabetId ?? "",
@@ -71,6 +87,14 @@ export default function App() {
                   : "3 · Compose"}
             </button>
           ))}
+          <button
+            className="theme-toggle"
+            title={theme === "light" ? "Switch to night" : "Switch to day"}
+            aria-label="Toggle day / night"
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+          >
+            {theme === "light" ? "☾" : "☀"}
+          </button>
         </nav>
       </header>
 
@@ -81,18 +105,27 @@ export default function App() {
           </aside>
 
           <main className="center">
-            <div className="mode-toggle seg">
+            <div className="editor-bar">
+              <div className="mode-toggle seg">
+                <button
+                  className={editMode === "cells" ? "active" : ""}
+                  onClick={() => setEditMode("cells")}
+                >
+                  Cells
+                </button>
+                <button
+                  className={editMode === "gaps" ? "active" : ""}
+                  onClick={() => setEditMode("gaps")}
+                >
+                  Gaps
+                </button>
+              </div>
               <button
-                className={editMode === "cells" ? "active" : ""}
-                onClick={() => setEditMode("cells")}
+                className={`overlay-toggle ${showHandles ? "on" : ""}`}
+                title="Show/hide the connect & gap controls"
+                onClick={() => setShowHandles((v) => !v)}
               >
-                Cells
-              </button>
-              <button
-                className={editMode === "gaps" ? "active" : ""}
-                onClick={() => setEditMode("gaps")}
-              >
-                Gaps (between)
+                {showHandles ? "Controls: on" : "Controls: off"}
               </button>
             </div>
             <div className="editor-wrap">
@@ -100,6 +133,7 @@ export default function App() {
                 letter={working}
                 onChange={setWorking}
                 mode={editMode}
+                showHandles={showHandles}
               />
             </div>
             <p className="hint">

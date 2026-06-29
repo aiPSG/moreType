@@ -24,10 +24,13 @@ export function GridEditor({
   letter,
   onChange,
   mode,
+  showHandles = true,
 }: {
   letter: Letter;
   onChange: (next: Letter) => void;
   mode: EditMode;
+  /** Show the connection handles / gap markers overlay (still editable when off). */
+  showHandles?: boolean;
 }) {
   const s = letter.settings;
   const layout = computeLayout(s);
@@ -130,7 +133,7 @@ export function GridEditor({
           </g>
 
           {/* Connection handles. */}
-          <g>
+          <g style={{ display: showHandles ? undefined : "none" }}>
             {handles.map((hd, i) => (
               <g
                 key={`handle-${i}`}
@@ -201,12 +204,14 @@ export function GridEditor({
                         applyGap(c, r, paint.current.mode);
                     }}
                   />
-                  <circle
-                    cx={x}
-                    cy={y}
-                    r={8}
-                    className={`gap-dot ${isActive ? "on" : "off"}`}
-                  />
+                  {showHandles && (
+                    <circle
+                      cx={x}
+                      cy={y}
+                      r={8}
+                      className={`gap-dot ${isActive ? "on" : "off"}`}
+                    />
+                  )}
                 </g>
               );
             }),

@@ -1,6 +1,6 @@
 import * as polygonClippingNS from "polygon-clipping";
 import type { Cell, LetterSettings } from "../types";
-import { cellKey, parseKey } from "./geometry";
+import { CELL, cellKey, parseKey } from "./geometry";
 import type { Layout } from "./geometry";
 
 // polygon-clipping ships as CommonJS whose ESM build exposes everything on its
@@ -73,14 +73,13 @@ function bodyRing(
         [cx, cy + r],
         [cx - r, cy],
       ];
-    case "triangle": {
-      const h = r * 1.4;
+    case "triangle":
+      // Fits within the cell box (±r) so triangles don't overlap at gap 0.
       return [
-        [cx, cy - h],
-        [cx + r * 1.2, cy + h * 0.7],
-        [cx - r * 1.2, cy + h * 0.7],
+        [cx, cy - r],
+        [cx + r, cy + r],
+        [cx - r, cy + r],
       ];
-    }
     case "circle":
     default: {
       const n = 80;
@@ -274,7 +273,10 @@ export function gapPath(
   gc: number,
   gr: number,
 ): string {
-  const r = layout.contentRadius;
+  // Derive the canonical interstitial shape from full-size cell footprints,
+  // then scale it by contentScale about the gap center — so gaps shrink with
+  // the Content-size slider exactly like the cells do.
+  const full = CELL / 2;
   const corners = [
     layout.center(gc, gr),
     layout.center(gc + 1, gr),
@@ -282,7 +284,7 @@ export function gapPath(
     layout.center(gc, gr + 1),
   ];
   const square: number[][] = corners.map((c) => [c.x, c.y]);
-  const holes = corners.map((c) => [bodyRing(s.cellShape, c.x, c.y, r)]);
+  const holes = corners.map((c) => [bodyRing(s.cellShape, c.x, c.y, full)]);
   let res: number[][][][];
   try {
     res = difference([square], ...holes);
@@ -290,7 +292,17 @@ export function gapPath(
     console.warn("[metaball] gap difference failed:", e);
     return "";
   }
+  const cx = (corners[0].x + corners[2].x) / 2;
+  const cy = (corners[0].y + corners[2].y) / 2;
+  const sc = s.contentScale;
   let d = "";
-  for (const poly of res) for (const ring of poly) d += ringToSubpath(ring) + " ";
+  for (const poly of res) {
+    for (const ring of poly) {
+      const scaled = ring.map(
+        ([x, y]) => [cx + (x - cx) * sc, cy + (y - cy) * sc] as number[],
+      );
+      d += ringToSubpath(scaled) + " ";
+    }
+  }
   return d.trim();
 }
