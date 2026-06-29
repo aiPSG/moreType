@@ -1,7 +1,21 @@
-import * as polygonClipping from "polygon-clipping";
+import * as polygonClippingNS from "polygon-clipping";
 import type { Cell, LetterSettings } from "../types";
 import { cellKey, parseKey } from "./geometry";
 import type { Layout } from "./geometry";
+
+// polygon-clipping ships as CommonJS whose ESM build exposes everything on its
+// *default* export. Depending on the bundler, the callable shows up either on
+// the namespace directly or under `.default`, so resolve it defensively — using
+// the wrong one silently yields `union is not a function` at runtime.
+type UnionFn = (
+  geom: number[][][],
+  ...geoms: number[][][][]
+) => number[][][][];
+const ns = polygonClippingNS as unknown as {
+  union?: UnionFn;
+  default?: { union?: UnionFn };
+};
+const union: UnionFn = (ns.union ?? ns.default?.union) as UnionFn;
 
 // ---------------------------------------------------------------------------
 // Pure-geometry connections.
@@ -147,12 +161,19 @@ function metaballNeckRing(
   const cp4 = add(p4, dir(angle4 - HALF_PI), h2);
   const cp2 = add(p2, dir(angle2 + HALF_PI), h1);
 
-  // p1 →(curve)→ p3 →(chord, inside c2)→ p4 →(curve)→ p2 →(chord, inside c1)→ p1
+  // p1 →(curve)→ p3 → (dip through c2) → p4 →(curve)→ p2 → (dip through c1) → p1
+  //
+  // The dips to each center are crucial: without them the neck only *touches*
+  // each circle at the rim points (zero shared area), and boolean-union on
+  // merely-touching shapes is unreliable — polygon-clipping can throw, leaving
+  // the bodies unmerged (white wedges). Routing the neck through each center
+  // guarantees solid overlap so the union always merges cleanly; the dips sit
+  // inside the full circles, so the visible outline is unchanged.
   const ring: Ring = [p1];
   ring.push(...sampleCubic(p1, cp1, cp3, p3));
-  ring.push(p3, p4);
+  ring.push(p3, c2, p4);
   ring.push(...sampleCubic(p4, cp4, cp2, p2));
-  ring.push(p2);
+  ring.push(p2, c1);
   return ring;
 }
 
@@ -169,7 +190,7 @@ function capsuleRing(c1: Pair, c2: Pair, halfWidth: number): Ring {
   ];
 }
 
-function ringToSubpath(ring: Ring): string {
+function ringToSubpath(ring: readonly (readonly number[])[]): string {
   if (ring.length === 0) return "";
   const [first, ...rest] = ring;
   let d = `M ${first[0].toFixed(2)} ${first[1].toFixed(2)}`;
@@ -220,10 +241,11 @@ export function componentUnionPath(
 
   if (geoms.length === 0) return "";
 
-  let merged: polygonClipping.MultiPolygon;
+  let merged: number[][][][];
   try {
-    merged = polygonClipping.union(geoms[0], ...geoms.slice(1));
-  } catch {
+    merged = union(geoms[0], ...geoms.slice(1));
+  } catch (e) {
+    console.warn("[metaball] union failed:", e);
     // Degenerate input — fall back to drawing the bodies unmerged.
     return geoms.map((g) => g.map(ringToSubpath).join(" ")).join(" ");
   }
