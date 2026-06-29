@@ -24,7 +24,8 @@ function GooFilter({ id, letter }: { id: string; letter: Letter }) {
   const s = letter.settings;
   const layout = computeLayout(s);
   const blur = s.goo * layout.contentRadius * 0.55;
-  const M = 22;
+  // Higher contrast → crisper, more uniform merged contour (and outline ring).
+  const M = 28;
   const erode = Math.max(0.5, s.outlineWidth * CELL);
 
   const fillColor = s.fillColor;
@@ -143,16 +144,33 @@ export function GlyphArt({
         </g>
       )}
 
-      {/* One goo group per connected component → only intentional merges. */}
       {comps.map((comp, i) => {
+        // A lone cell needs no metaball merge: render it as a crisp vector
+        // shape so it fills the cell exactly at 100% and gets a clean,
+        // uniform-width outline (the goo filter would blur/shrink both).
+        if (comp.length === 1) {
+          const { c, r } = parseKey(comp[0]);
+          const { x, y } = layout.center(c, r);
+          return (
+            <path
+              key={`comp-${i}`}
+              d={shapePath(s.cellShape, x, y, layout.contentRadius)}
+              fill={s.fill ? s.fillColor : "none"}
+              stroke={s.outline ? s.outlineColor : "none"}
+              strokeWidth={s.outline ? s.outlineWidth * CELL : 0}
+              strokeLinejoin="round"
+            />
+          );
+        }
+
+        // Connected cells: fuse bodies + necks via the goo filter.
         const compSet = new Set(comp);
         const connsInComp = letter.connections.filter(
           (cn) =>
             compSet.has(cellKey(cn.a.c, cn.a.r)) &&
             compSet.has(cellKey(cn.b.c, cn.b.r)),
         );
-        const neckW =
-          s.connectionWidth * layout.contentRadius * 2 * 0.9 || 1;
+        const neckW = s.connectionWidth * layout.contentRadius * 2 * 0.9 || 1;
         return (
           <g key={`comp-${i}`} filter={`url(#${filterId})`}>
             {/* Connection necks (drawn first, fused by the goo filter). */}

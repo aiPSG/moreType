@@ -2,26 +2,21 @@ import type { CellShape, Letter, LetterSettings } from "../types";
 
 const SHAPES: CellShape[] = ["circle", "square", "diamond", "triangle"];
 
-export function SettingsPanel({
-  letter,
-  onChange,
-}: {
-  letter: Letter;
-  onChange: (next: Letter) => void;
+/**
+ * Defined at module scope (NOT inside SettingsPanel) so React keeps the same
+ * <input> instance across renders — otherwise it remounts on every value
+ * change and the drag is interrupted, making the slider feel "steppy".
+ */
+function Slider(props: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+  fmt?: (v: number) => string;
 }) {
-  const s = letter.settings;
-  const update = (patch: Partial<LetterSettings>) =>
-    onChange({ ...letter, settings: { ...s, ...patch } });
-
-  const Slider = (props: {
-    label: string;
-    value: number;
-    min: number;
-    max: number;
-    step: number;
-    onChange: (v: number) => void;
-    fmt?: (v: number) => string;
-  }) => (
+  return (
     <label className="field">
       <span className="field-label">
         {props.label}
@@ -39,6 +34,18 @@ export function SettingsPanel({
       />
     </label>
   );
+}
+
+export function SettingsPanel({
+  letter,
+  onChange,
+}: {
+  letter: Letter;
+  onChange: (next: Letter) => void;
+}) {
+  const s = letter.settings;
+  const update = (patch: Partial<LetterSettings>) =>
+    onChange({ ...letter, settings: { ...s, ...patch } });
 
   return (
     <div className="settings">
