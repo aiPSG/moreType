@@ -215,6 +215,26 @@ export function SettingsPanel({
           fmt={(v) => v.toFixed(2)}
           onChange={(v) => update({ outlineWidth: v })}
         />
+        <label className="field checkbox">
+          <input
+            type="checkbox"
+            checked={(s.bgColor ?? "transparent") !== "transparent"}
+            onChange={(e) =>
+              update({ bgColor: e.target.checked ? "#ffffff" : "transparent" })
+            }
+          />
+          <span>Background</span>
+        </label>
+        {(s.bgColor ?? "transparent") !== "transparent" && (
+          <label className="field">
+            <span className="field-label">Background color</span>
+            <input
+              type="color"
+              value={s.bgColor}
+              onChange={(e) => update({ bgColor: e.target.value })}
+            />
+          </label>
+        )}
       </section>
     </div>
   );

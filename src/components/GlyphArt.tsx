@@ -106,11 +106,14 @@ export function GlyphArt({
   letter,
   uid,
   forceShowGrid,
+  background,
 }: {
   letter: Letter;
   uid: string;
   /** Editor passes true so the grid is always visible while designing. */
   forceShowGrid?: boolean;
+  /** Paint the per-letter background fill (single-glyph contexts only). */
+  background?: boolean;
 }) {
   const s = letter.settings;
   const layout = computeLayout(s);
@@ -119,9 +122,19 @@ export function GlyphArt({
   const showGrid = forceShowGrid ?? s.showGrid;
   // Saved letters from before this option default to the filter look.
   const connectMode = s.connectMode ?? "goo";
+  const bg = s.bgColor ?? "transparent";
 
   return (
     <Fragment>
+      {background && bg !== "transparent" && (
+        <rect
+          x={0}
+          y={0}
+          width={layout.width + layout.pad * 2}
+          height={layout.height + layout.pad * 2}
+          fill={bg}
+        />
+      )}
       {connectMode === "goo" && (
         <defs>
           <GooFilter id={filterId} letter={letter} />
@@ -268,7 +281,7 @@ export function Glyph({
       width={(height * w) / h}
       xmlns="http://www.w3.org/2000/svg"
     >
-      <GlyphArt letter={letter} uid={uid} />
+      <GlyphArt letter={letter} uid={uid} background />
     </svg>
   );
 }

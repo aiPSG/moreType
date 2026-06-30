@@ -52,6 +52,9 @@ export interface LetterSettings {
   fill: boolean;
   fillColor: string;
 
+  /** Background fill behind the glyph ("transparent" = none). */
+  bgColor: string;
+
   /** Render an outline that follows the (possibly gooey) contour. */
   outline: boolean;
   outlineColor: string;

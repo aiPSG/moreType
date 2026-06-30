@@ -34,6 +34,7 @@ export const defaultSettings = (cols = 4, rows = 5): LetterSettings => ({
   goo: 0.6,
   fill: true,
   fillColor: "#111111",
+  bgColor: "transparent",
   outline: false,
   outlineColor: "#111111",
   outlineWidth: 0.06,

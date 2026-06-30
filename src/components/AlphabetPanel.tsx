@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { store, useStore } from "../store";
+import { downloadFont } from "../lib/fontExport";
 import { Glyph } from "./GlyphArt";
 
 /** Manage alphabets and inspect their assigned glyphs. */
@@ -46,14 +47,34 @@ export function AlphabetPanel({ onEdit }: { onEdit: (letterId: string) => void }
         );
         return (
           <section key={ab.id} className="alphabet-card">
-            <header className="row gap between">
-              <input
-                className="alphabet-name"
-                value={ab.name}
-                onChange={(e) => store.renameAlphabet(ab.id, e.target.value)}
-              />
+            <header className="alphabet-head">
+              <label className="alphabet-name-field">
+                <span className="field-label">Alphabet name</span>
+                <input
+                  className="alphabet-name"
+                  value={ab.name}
+                  aria-label="Alphabet name"
+                  placeholder="Untitled alphabet"
+                  onChange={(e) => store.renameAlphabet(ab.id, e.target.value)}
+                />
+              </label>
               <div className="row gap">
                 <span className="muted">{entries.length} glyphs</span>
+                <button
+                  onClick={() => {
+                    if (entries.length === 0) {
+                      alert("Assign at least one glyph before exporting a font.");
+                      return;
+                    }
+                    try {
+                      downloadFont(ab, state.letters);
+                    } catch (err) {
+                      alert("Font export failed: " + String(err));
+                    }
+                  }}
+                >
+                  ⬇ Export .ttf
+                </button>
                 <button
                   className="danger ghost"
                   onClick={() => {

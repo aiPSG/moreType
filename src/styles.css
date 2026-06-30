@@ -579,16 +579,25 @@ hr {
   padding: 18px;
   margin: 14px 0;
 }
+.alphabet-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.alphabet-name-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
 .alphabet-name {
   font-weight: 600;
   font-size: 15px;
-  width: auto !important;
-  border: 1px solid transparent !important;
-  background: transparent !important;
+  width: 220px !important;
 }
-.alphabet-name:hover,
 .alphabet-name:focus {
-  border-color: var(--line-strong) !important;
+  border-color: var(--ink) !important;
 }
 .glyph-grid {
   display: grid;

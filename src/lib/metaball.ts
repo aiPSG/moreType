@@ -52,7 +52,7 @@ const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
 
 /** A cell body as a polygon ring, matching the shapePath() geometry. */
-function bodyRing(
+export function bodyRing(
   shape: LetterSettings["cellShape"],
   cx: number,
   cy: number,
@@ -82,7 +82,9 @@ function bodyRing(
       ];
     case "circle":
     default: {
-      const n = 80;
+      // Smooth enough that merged/gap circle arcs read as true curves in both
+      // SVG download and the generated font.
+      const n = 96;
       const ring: Ring = [];
       for (let i = 0; i < n; i++) {
         const a = (i / n) * TAU;
@@ -204,15 +206,15 @@ function ringToSubpath(ring: readonly (readonly number[])[]): string {
 }
 
 /**
- * Build a single SVG path `d` for a connected component, merged via boolean
- * union. Returns "" if there is nothing to draw.
+ * Boolean-union geometry for a connected component, as a MultiPolygon of rings
+ * (SVG coordinates). Shared by SVG rendering and font generation.
  */
-export function componentUnionPath(
+export function componentUnionMulti(
   s: LetterSettings,
   layout: Layout,
   compKeys: string[],
   conns: { a: Cell; b: Cell }[],
-): string {
+): number[][][][] {
   const r = layout.contentRadius;
   const isCircle = s.cellShape === "circle";
 
@@ -244,17 +246,25 @@ export function componentUnionPath(
     if (ring) geoms.push([ring]);
   }
 
-  if (geoms.length === 0) return "";
+  if (geoms.length === 0) return [];
 
-  let merged: number[][][][];
   try {
-    merged = union(geoms[0], ...geoms.slice(1));
+    return union(geoms[0], ...geoms.slice(1));
   } catch (e) {
     console.warn("[metaball] union failed:", e);
-    // Degenerate input — fall back to drawing the bodies unmerged.
-    return geoms.map((g) => g.map(ringToSubpath).join(" ")).join(" ");
+    // Degenerate input — return the unmerged bodies.
+    return geoms as unknown as number[][][][];
   }
+}
 
+/** SVG path `d` for a connected component (see componentUnionMulti). */
+export function componentUnionPath(
+  s: LetterSettings,
+  layout: Layout,
+  compKeys: string[],
+  conns: { a: Cell; b: Cell }[],
+): string {
+  const merged = componentUnionMulti(s, layout, compKeys, conns);
   let d = "";
   for (const poly of merged) for (const ring of poly) d += ringToSubpath(ring) + " ";
   return d.trim();
@@ -267,12 +277,12 @@ export function componentUnionPath(
  * automatically follows whatever cell shape is selected. Returns "" if the
  * shapes leave no gap (e.g. squares at 100%).
  */
-export function gapPath(
+export function gapMulti(
   s: LetterSettings,
   layout: Layout,
   gc: number,
   gr: number,
-): string {
+): number[][][][] {
   // Derive the canonical interstitial shape from full-size cell footprints,
   // then scale it by contentScale about the gap center — so gaps shrink with
   // the Content-size slider exactly like the cells do.
@@ -290,19 +300,27 @@ export function gapPath(
     res = difference([square], ...holes);
   } catch (e) {
     console.warn("[metaball] gap difference failed:", e);
-    return "";
+    return [];
   }
   const cx = (corners[0].x + corners[2].x) / 2;
   const cy = (corners[0].y + corners[2].y) / 2;
   const sc = s.contentScale;
+  return res.map((poly) =>
+    poly.map((ring) =>
+      ring.map(([x, y]) => [cx + (x - cx) * sc, cy + (y - cy) * sc]),
+    ),
+  );
+}
+
+/** SVG path `d` for a negative-space gap (see gapMulti). */
+export function gapPath(
+  s: LetterSettings,
+  layout: Layout,
+  gc: number,
+  gr: number,
+): string {
+  const res = gapMulti(s, layout, gc, gr);
   let d = "";
-  for (const poly of res) {
-    for (const ring of poly) {
-      const scaled = ring.map(
-        ([x, y]) => [cx + (x - cx) * sc, cy + (y - cy) * sc] as number[],
-      );
-      d += ringToSubpath(scaled) + " ";
-    }
-  }
+  for (const poly of res) for (const ring of poly) d += ringToSubpath(ring) + " ";
   return d.trim();
 }

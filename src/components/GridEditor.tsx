@@ -95,6 +95,7 @@ export function GridEditor({
         letter={letter}
         uid={`editor-${letter.id}`}
         forceShowGrid={s.showGrid}
+        background
       />
 
       {mode === "cells" && (
