@@ -25,12 +25,15 @@ export function GridEditor({
   onChange,
   mode,
   showHandles = true,
+  zoom = 1,
 }: {
   letter: Letter;
   onChange: (next: Letter) => void;
   mode: EditMode;
   /** Show the connection handles / gap markers overlay (still editable when off). */
   showHandles?: boolean;
+  /** Display zoom factor (1 = fit). */
+  zoom?: number;
 }) {
   const s = letter.settings;
   const layout = computeLayout(s);
@@ -88,6 +91,12 @@ export function GridEditor({
       className="editor-svg"
       viewBox={`0 0 ${w} ${h}`}
       xmlns="http://www.w3.org/2000/svg"
+      style={{
+        width: `${zoom * 100}%`,
+        height: `${zoom * 100}%`,
+        maxWidth: "none",
+        maxHeight: "none",
+      }}
       onPointerUp={() => (paint.current = null)}
       onPointerLeave={() => (paint.current = null)}
     >

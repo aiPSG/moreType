@@ -166,6 +166,55 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
+}
+.bar-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.undo-ctl,
+.zoom-ctl {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.bar-icon {
+  border: none;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  width: 30px;
+  height: 30px;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.undo-ctl .bar-icon:first-child,
+.zoom-ctl .bar-icon:first-child {
+  border-left: none;
+}
+.bar-icon:hover:not(:disabled) {
+  background: var(--hover);
+}
+.bar-icon:disabled {
+  color: var(--muted);
+  opacity: 0.5;
+  cursor: default;
+}
+.zoom-val {
+  border: none;
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  min-width: 48px;
+  height: 30px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
 }
 .editor-wrap {
   flex: 1 1 auto;
@@ -177,11 +226,11 @@ body {
   border-radius: var(--r);
   background: var(--artboard);
   padding: 20px;
+  overflow: auto;
 }
 .editor-svg {
-  max-width: 100%;
-  max-height: 100%;
   touch-action: none;
+  flex: 0 0 auto;
 }
 .hint {
   margin: 0;
@@ -303,8 +352,29 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.16em;
   color: var(--ink);
-  margin: 0 0 14px;
+  margin: 0;
   font-weight: 700;
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 14px;
+}
+.reset-btn {
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border-radius: var(--r);
+  cursor: pointer;
+}
+.reset-btn:hover {
+  color: var(--ink);
+  border-color: var(--ink);
 }
 
 .field {
@@ -316,11 +386,36 @@ body {
 }
 .field-label {
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 8px;
   font-size: 12px;
   letter-spacing: 0.02em;
   color: var(--ink-soft);
   margin-bottom: 7px;
+}
+.field-label input.num {
+  width: 74px;
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--field);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.field-label span {
+  flex: 1 1 auto;
+}
+.field-label input.num:focus {
+  outline: none;
+  border-color: var(--ink);
+}
+.field.disabled input.num {
+  opacity: 0.5;
 }
 .field.disabled {
   opacity: 0.4;
@@ -377,7 +472,7 @@ input[type="range"]::-moz-range-track {
 }
 
 /* ---- Inputs -------------------------------------------------------- */
-input[type="text"],
+input[type="text"]:not(.num),
 input:not([type]),
 select,
 textarea {
@@ -408,7 +503,7 @@ input[type="color"] {
 input[type="checkbox"] {
   width: 15px;
   height: 15px;
-  accent-color: var(--accent);
+  accent-color: var(--ink);
 }
 textarea {
   resize: vertical;

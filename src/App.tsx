@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Letter } from "./types";
 import { newLetter, store, useStore } from "./store";
+import { useUndoable } from "./hooks/useUndoable";
 import { GridEditor, type EditMode } from "./components/GridEditor";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { AlphabetPanel } from "./components/AlphabetPanel";
@@ -14,13 +15,15 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("design");
   const [editMode, setEditMode] = useState<EditMode>("cells");
   const [showHandles, setShowHandles] = useState(true);
+  const [zoom, setZoom] = useState(1);
   const [theme, setTheme] = useState<"light" | "dark">(
     () =>
       (typeof localStorage !== "undefined" &&
         (localStorage.getItem("moretype.theme") as "light" | "dark")) ||
       "light",
   );
-  const [working, setWorking] = useState<Letter>(() => newLetter());
+  const [working, setWorking, history] = useUndoable<Letter>(() => newLetter());
+  const { undo, redo, canUndo, canRedo } = history;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -30,6 +33,35 @@ export default function App() {
       /* ignore */
     }
   }, [theme]);
+
+  // Undo / redo keyboard shortcuts (ignored while typing in a field).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (
+        t &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "TEXTAREA" ||
+          t.isContentEditable)
+      )
+        return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, redo]);
+
+  const setZoomClamped = (v: number) =>
+    setZoom(Math.min(4, Math.max(0.25, Math.round(v * 100) / 100)));
+  const toggleShowGrid = () =>
+    setWorking({
+      ...working,
+      settings: { ...working.settings, showGrid: !working.settings.showGrid },
+    });
   const [assignChar, setAssignChar] = useState("");
   const [assignAlphabet, setAssignAlphabet] = useState(
     state.activeAlphabetId ?? "",
@@ -122,20 +154,78 @@ export default function App() {
                   Gaps
                 </button>
               </div>
-              <button
-                className={`overlay-toggle ${showHandles ? "on" : ""}`}
-                title="Show/hide the connect & gap controls"
-                onClick={() => setShowHandles((v) => !v)}
-              >
-                {showHandles ? "Controls: on" : "Controls: off"}
-              </button>
+
+              <div className="bar-tools">
+                <div className="undo-ctl">
+                  <button
+                    className="bar-icon"
+                    title="Undo (⌘/Ctrl+Z)"
+                    disabled={!canUndo}
+                    onClick={undo}
+                  >
+                    ↶
+                  </button>
+                  <button
+                    className="bar-icon"
+                    title="Redo (⌘/Ctrl+Shift+Z)"
+                    disabled={!canRedo}
+                    onClick={redo}
+                  >
+                    ↷
+                  </button>
+                </div>
+                <div className="zoom-ctl">
+                  <button
+                    className="bar-icon"
+                    title="Zoom out"
+                    onClick={() => setZoomClamped(zoom - 0.25)}
+                  >
+                    −
+                  </button>
+                  <button
+                    className="zoom-val"
+                    title="Reset zoom"
+                    onClick={() => setZoom(1)}
+                  >
+                    {Math.round(zoom * 100)}%
+                  </button>
+                  <button
+                    className="bar-icon"
+                    title="Zoom in"
+                    onClick={() => setZoomClamped(zoom + 0.25)}
+                  >
+                    +
+                  </button>
+                </div>
+                <button
+                  className={`overlay-toggle ${working.settings.showGrid ? "on" : ""}`}
+                  title="Show/hide the construction grid"
+                  onClick={toggleShowGrid}
+                >
+                  Grid
+                </button>
+                <button
+                  className={`overlay-toggle ${showHandles ? "on" : ""}`}
+                  title="Show/hide the connect & gap controls"
+                  onClick={() => setShowHandles((v) => !v)}
+                >
+                  Controls
+                </button>
+              </div>
             </div>
-            <div className="editor-wrap">
+            <div
+              className="editor-wrap"
+              onWheel={(e) => {
+                if (e.ctrlKey || e.metaKey)
+                  setZoomClamped(zoom - Math.sign(e.deltaY) * 0.1);
+              }}
+            >
               <GridEditor
                 letter={working}
                 onChange={setWorking}
                 mode={editMode}
                 showHandles={showHandles}
+                zoom={zoom}
               />
             </div>
             <p className="hint">

@@ -1,30 +1,53 @@
+import { useState } from "react";
 import type { CellShape, Letter, LetterSettings } from "../types";
+import { defaultSettings } from "../lib/geometry";
 
 const SHAPES: CellShape[] = ["circle", "square", "diamond", "triangle"];
 
 /**
- * Defined at module scope (NOT inside SettingsPanel) so React keeps the same
- * <input> instance across renders — otherwise it remounts on every value
- * change and the drag is interrupted, making the slider feel "steppy".
+ * A labelled numeric control: an editable text field (type an exact value,
+ * including in-progress decimals like "0.") paired with a range slider for
+ * dragging. Local text lets partial entries survive; committed on blur.
  */
-function Slider(props: {
+function Num(props: {
   label: string;
   value: number;
   min: number;
   max: number;
   step: number;
   onChange: (v: number) => void;
-  fmt?: (v: number) => string;
   disabled?: boolean;
 }) {
+  const clamp = (v: number) => Math.min(props.max, Math.max(props.min, v));
+  const [text, setText] = useState<string | null>(null);
+  const shown = text ?? String(props.value);
   return (
-    <label className={`field ${props.disabled ? "disabled" : ""}`}>
-      <span className="field-label">
-        {props.label}
-        <span className="field-value">
-          {props.fmt ? props.fmt(props.value) : props.value}
-        </span>
-      </span>
+    <div className={`field ${props.disabled ? "disabled" : ""}`}>
+      <div className="field-label">
+        <span>{props.label}</span>
+        <input
+          className="num"
+          type="text"
+          inputMode="decimal"
+          value={shown}
+          disabled={props.disabled}
+          onChange={(e) => {
+            const str = e.target.value;
+            setText(str);
+            const v = Number(str);
+            if (str.trim() !== "" && !Number.isNaN(v)) props.onChange(v);
+          }}
+          onBlur={(e) => {
+            const v = Number(e.target.value);
+            props.onChange(
+              e.target.value.trim() === "" || Number.isNaN(v)
+                ? props.value
+                : clamp(v),
+            );
+            setText(null);
+          }}
+        />
+      </div>
       <input
         type="range"
         min={props.min}
@@ -34,7 +57,19 @@ function Slider(props: {
         disabled={props.disabled}
         onChange={(e) => props.onChange(Number(e.target.value))}
       />
-    </label>
+    </div>
+  );
+}
+
+/** Section header with a "reset to default" button for its fields. */
+function SectionHead({ title, onReset }: { title: string; onReset: () => void }) {
+  return (
+    <div className="section-head">
+      <h3>{title}</h3>
+      <button className="reset-btn" title="Reset to defaults" onClick={onReset}>
+        reset
+      </button>
+    </div>
   );
 }
 
@@ -51,44 +86,64 @@ export function SettingsPanel({
   const update = (patch: Partial<LetterSettings>) =>
     onChange({ ...letter, settings: { ...s, ...patch } });
 
+  /** Reset a subset of keys to their default values. */
+  const reset = (keys: (keyof LetterSettings)[]) => {
+    const d = defaultSettings(s.cols, s.rows);
+    const patch: Partial<LetterSettings> = {};
+    for (const k of keys) (patch as Record<string, unknown>)[k] = d[k];
+    update(patch);
+  };
+
   return (
     <div className="settings">
       <section>
-        <h3>Grid</h3>
-        <Slider
+        <SectionHead
+          title="Grid"
+          onReset={() =>
+            reset([
+              "cols",
+              "rows",
+              "cellW",
+              "cellH",
+              "lockCellAspect",
+              "gapX",
+              "gapY",
+              "gridColor",
+            ])
+          }
+        />
+        <Num
           label="Columns"
           value={s.cols}
           min={1}
           max={64}
           step={1}
-          onChange={(v) => update({ cols: v })}
+          onChange={(v) => update({ cols: Math.round(v) })}
         />
-        <Slider
+        <Num
           label="Rows"
           value={s.rows}
           min={1}
           max={36}
           step={1}
-          onChange={(v) => update({ rows: v })}
+          onChange={(v) => update({ rows: Math.round(v) })}
         />
-        <Slider
+        <Num
           label="Cell width"
           value={s.cellW ?? 1}
           min={0.25}
           max={2.5}
           step={0.05}
-          fmt={(v) => `${Math.round(v * 100)}%`}
           onChange={(v) =>
             update(lockAspect ? { cellW: v, cellH: v } : { cellW: v })
           }
         />
-        <Slider
+        <Num
           label="Cell height"
           value={s.cellH ?? 1}
           min={0.25}
           max={2.5}
           step={0.05}
-          fmt={(v) => `${Math.round(v * 100)}%`}
           disabled={lockAspect}
           onChange={(v) => update({ cellH: v })}
         />
@@ -106,32 +161,22 @@ export function SettingsPanel({
           />
           <span>Lock height to width</span>
         </label>
-        <Slider
+        <Num
           label="Horizontal gap"
           value={s.gapX}
           min={0}
           max={1.5}
           step={0.05}
-          fmt={(v) => v.toFixed(2)}
           onChange={(v) => update({ gapX: v })}
         />
-        <Slider
+        <Num
           label="Vertical gap"
           value={s.gapY}
           min={0}
           max={1.5}
           step={0.05}
-          fmt={(v) => v.toFixed(2)}
           onChange={(v) => update({ gapY: v })}
         />
-        <label className="field checkbox">
-          <input
-            type="checkbox"
-            checked={s.showGrid}
-            onChange={(e) => update({ showGrid: e.target.checked })}
-          />
-          <span>Show grid</span>
-        </label>
         <label className="field">
           <span className="field-label">Grid color</span>
           <input
@@ -143,7 +188,10 @@ export function SettingsPanel({
       </section>
 
       <section>
-        <h3>Cell content</h3>
+        <SectionHead
+          title="Cell content"
+          onReset={() => reset(["cellShape", "contentScale"])}
+        />
         <label className="field">
           <span className="field-label">Shape</span>
           <div className="seg">
@@ -158,26 +206,28 @@ export function SettingsPanel({
             ))}
           </div>
         </label>
-        <Slider
+        <Num
           label="Content size"
           value={s.contentScale}
           min={0.2}
           max={1}
           step={0.05}
-          fmt={(v) => `${Math.round(v * 100)}%`}
           onChange={(v) => update({ contentScale: v })}
         />
       </section>
 
       <section>
-        <h3>Connections</h3>
+        <SectionHead
+          title="Connections"
+          onReset={() => reset(["connectMode", "connectionWidth", "goo"])}
+        />
         <label className="field">
           <span className="field-label">Connection style</span>
           <div className="seg">
             <button
               className={connectMode === "geometry" ? "active" : ""}
               onClick={() => update({ connectMode: "geometry" })}
-              title="Crisp boolean-union geometry: uniform outline, exact body sizes"
+              title="Crisp boolean-union geometry that follows the circle packing"
             >
               geometry
             </button>
@@ -190,28 +240,38 @@ export function SettingsPanel({
             </button>
           </div>
         </label>
-        <Slider
-          label={connectMode === "geometry" ? "Neck width" : "Neck width"}
+        <Num
+          label="Neck width"
           value={s.connectionWidth}
           min={0.1}
           max={1}
           step={0.05}
-          fmt={(v) => `${Math.round(v * 100)}%`}
           onChange={(v) => update({ connectionWidth: v })}
         />
-        <Slider
+        <Num
           label={connectMode === "geometry" ? "Carve depth" : "Goo strength"}
           value={s.goo}
           min={0}
           max={1.5}
           step={0.05}
-          fmt={(v) => v.toFixed(2)}
           onChange={(v) => update({ goo: v })}
         />
       </section>
 
       <section>
-        <h3>Appearance</h3>
+        <SectionHead
+          title="Appearance"
+          onReset={() =>
+            reset([
+              "fill",
+              "fillColor",
+              "outline",
+              "outlineColor",
+              "outlineWidth",
+              "bgColor",
+            ])
+          }
+        />
         <label className="field checkbox">
           <input
             type="checkbox"
@@ -244,13 +304,12 @@ export function SettingsPanel({
             onChange={(e) => update({ outlineColor: e.target.value })}
           />
         </label>
-        <Slider
+        <Num
           label="Outline width"
           value={s.outlineWidth}
           min={0.01}
           max={0.2}
           step={0.01}
-          fmt={(v) => v.toFixed(2)}
           onChange={(v) => update({ outlineWidth: v })}
         />
         <label className="field checkbox">
