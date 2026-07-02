@@ -32,12 +32,10 @@ export const defaultSettings = (cols = 4, rows = 5): LetterSettings => ({
   cellH: 1,
   lockCellAspect: true,
   contentScale: 1,
-  // With gap 0 and content 100% adjacent circles touch (d = 2r). A neck that
-  // attaches at 60° (v = 2/3 → width 0.76) with Bézier handles of ~0.357r
-  // (goo 0.5 under the 0.15 + goo·0.77 mapping) reproduces the fillet arc of
-  // radius r exactly — the neck nestles perfectly into the gap between the
-  // neighbouring circles.
-  connectionWidth: 0.76,
+  // Neck width 1 = bridge as wide as a body; carve depth (goo) 0.5 makes the
+  // carving cells exactly body-sized, so the join is bounded precisely by the
+  // arcs of the surrounding circles.
+  connectionWidth: 1,
   connectMode: "geometry",
   goo: 0.5,
   fill: true,

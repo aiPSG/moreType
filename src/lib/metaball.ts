@@ -8,8 +8,8 @@ import type { Layout } from "./geometry";
 // the namespace directly or under `.default`, so resolve it defensively — using
 // the wrong one silently yields `union is not a function` at runtime.
 type ClipFn = (
-  geom: number[][][],
-  ...geoms: number[][][][]
+  geom: number[][][] | number[][][][],
+  ...geoms: (number[][][] | number[][][][])[]
 ) => number[][][][];
 const nsRaw = polygonClippingNS as unknown as {
   union?: ClipFn;
@@ -41,15 +41,6 @@ type Poly = Ring[];
 
 const TAU = Math.PI * 2;
 const HALF_PI = Math.PI / 2;
-
-const dir = (a: number): Pair => [Math.cos(a), Math.sin(a)];
-const add = (p: Pair, v: Pair, len: number): Pair => [
-  p[0] + v[0] * len,
-  p[1] + v[1] * len,
-];
-const dist = (a: Pair, b: Pair) => Math.hypot(a[0] - b[0], a[1] - b[1]);
-const clamp = (v: number, lo: number, hi: number) =>
-  Math.max(lo, Math.min(hi, v));
 
 /** A cell body as a polygon ring, matching the shapePath() geometry. */
 export function bodyRing(
@@ -95,103 +86,6 @@ export function bodyRing(
   }
 }
 
-function sampleCubic(
-  p0: Pair,
-  c0: Pair,
-  c1: Pair,
-  p1: Pair,
-  n = 18,
-): Pair[] {
-  const out: Pair[] = [];
-  for (let i = 1; i < n; i++) {
-    const t = i / n;
-    const mt = 1 - t;
-    const a = mt * mt * mt;
-    const b = 3 * mt * mt * t;
-    const c = 3 * mt * t * t;
-    const d = t * t * t;
-    out.push([
-      a * p0[0] + b * c0[0] + c * c1[0] + d * p1[0],
-      a * p0[1] + b * c0[1] + c * c1[1] + d * p1[1],
-    ]);
-  }
-  return out;
-}
-
-/**
- * Metaball neck between two equal circles, built around the "perfect fit":
- * the fillet circle of radius r that is tangent to both bodies — i.e. the
- * curvature of the neighbouring grid circles. Its attach angle is
- *   β = atan2(√((2r)² − (d/2)²), d/2)
- * (60° for touching orthogonal neighbours, 45° for diagonals), and the exact
- * Bézier handle for that fillet arc is (4/3)·tan(φ/4)·r with φ = π − 2β.
- * `widthFactor`/`filletFactor` scale attach angle and handle length relative
- * to this ideal (1 = perfect fit), so the sliders modulate around a neck that
- * nestles exactly into the gap between the circles at any grid distance.
- */
-function metaballNeckRing(
-  c1: Pair,
-  r1: number,
-  c2: Pair,
-  r2: number,
-  widthFactor: number,
-  filletFactor: number,
-): Ring | null {
-  const d = dist(c1, c2);
-  if (d === 0 || r1 === 0 || r2 === 0) return null;
-
-  const a = Math.atan2(c2[1] - c1[1], c2[0] - c1[0]);
-  const r = (r1 + r2) / 2;
-  const half = d / 2;
-  const beta = Math.atan2(
-    Math.sqrt(Math.max(0, (2 * r) ** 2 - half * half)),
-    half,
-  );
-  const maxSpread = Math.acos(clamp((r1 - r2) / d, -1, 1));
-  // Floor keeps a slim visible neck when bodies are too far apart for a
-  // radius-r fillet circle to exist (β → 0).
-  const attach = clamp(
-    widthFactor * Math.max(beta, 0.15),
-    0.06,
-    maxSpread * 0.92,
-  );
-
-  const phi = Math.max(0.05, Math.PI - 2 * attach);
-  const hIdeal = (4 / 3) * Math.tan(phi / 4) * r;
-
-  const angle1 = a + attach;
-  const angle2 = a - attach;
-  const angle3 = a + Math.PI - attach;
-  const angle4 = a + Math.PI + attach;
-
-  const p1 = add(c1, dir(angle1), r1);
-  const p2 = add(c1, dir(angle2), r1);
-  const p3 = add(c2, dir(angle3), r2);
-  const p4 = add(c2, dir(angle4), r2);
-
-  const h = Math.min(hIdeal * filletFactor, dist(p1, p3) * 0.5);
-
-  const cp1 = add(p1, dir(angle1 - HALF_PI), h);
-  const cp3 = add(p3, dir(angle3 + HALF_PI), h);
-  const cp4 = add(p4, dir(angle4 - HALF_PI), h);
-  const cp2 = add(p2, dir(angle2 + HALF_PI), h);
-
-  // p1 →(curve)→ p3 → (dip through c2) → p4 →(curve)→ p2 → (dip through c1) → p1
-  //
-  // The dips to each center are crucial: without them the neck only *touches*
-  // each circle at the rim points (zero shared area), and boolean-union on
-  // merely-touching shapes is unreliable — polygon-clipping can throw, leaving
-  // the bodies unmerged (white wedges). Routing the neck through each center
-  // guarantees solid overlap so the union always merges cleanly; the dips sit
-  // inside the full circles, so the visible outline is unchanged.
-  const ring: Ring = [p1];
-  ring.push(...sampleCubic(p1, cp1, cp3, p3));
-  ring.push(p3, c2, p4);
-  ring.push(...sampleCubic(p4, cp4, cp2, p2));
-  ring.push(p2, c1);
-  return ring;
-}
-
 /** Straight capsule/bar neck (used for non-circular cell shapes). */
 function capsuleRing(c1: Pair, c2: Pair, halfWidth: number): Ring {
   const a = Math.atan2(c2[1] - c1[1], c2[0] - c1[0]);
@@ -226,33 +120,33 @@ function scaleMulti(
 }
 
 /**
- * Boolean-union geometry for a connected component, as a MultiPolygon of rings
- * (SVG coordinates). Shared by SVG rendering and font generation.
+ * Boolean geometry for a connected component, as a MultiPolygon of rings in
+ * square cell space. Shared by SVG rendering and font generation.
+ *
+ * The join follows the negative space of the circle packing: connected cells
+ * are bridged with a bar and unioned, then the *empty* neighbouring cells are
+ * subtracted, so the neck's concave edges are literally the arcs of the
+ * surrounding circles. "Neck width" sets how wide the bridge is before the
+ * neighbours carve it; "carve depth" scales the size of the carving cells.
  */
 export function componentUnionMulti(
   s: LetterSettings,
   layout: Layout,
   compKeys: string[],
   conns: { a: Cell; b: Cell }[],
+  allActive: string[] = compKeys,
 ): number[][][][] {
   const r = layout.contentRadius;
-  const isCircle = s.cellShape === "circle";
 
   const geoms: Poly[] = [];
-
   for (const k of compKeys) {
     const { c, r: row } = parseKey(k);
     const { x, y } = layout.center(c, row);
     geoms.push([bodyRing(s.cellShape, x, y, r)]);
   }
 
-  // Sliders scale relative to the "perfect fit" neck (see metaballNeckRing):
-  // at the defaults (width 0.76, fillet 0.5) both factors are exactly 1 and
-  // every neck nestles precisely into the gap between the grid circles.
-  const widthFactor = (s.connectionWidth ?? 0.76) / 0.76;
-  const filletFactor = (s.goo ?? 0.5) / 0.5;
-  const capHalf = Math.max(2, s.connectionWidth * r);
-
+  // Bridge width before the neighbours carve it (full body width at 1.0).
+  const capHalf = Math.max(1, (s.connectionWidth ?? 1) * r);
   const inComp = new Set(compKeys);
   for (const cn of conns) {
     const ka = cellKey(cn.a.c, cn.a.r);
@@ -260,22 +154,47 @@ export function componentUnionMulti(
     if (!inComp.has(ka) || !inComp.has(kb)) continue;
     const pa = layout.center(cn.a.c, cn.a.r);
     const pb = layout.center(cn.b.c, cn.b.r);
-    const c1: Pair = [pa.x, pa.y];
-    const c2: Pair = [pb.x, pb.y];
-    const ring = isCircle
-      ? metaballNeckRing(c1, r, c2, r, widthFactor, filletFactor)
-      : capsuleRing(c1, c2, capHalf);
-    if (ring) geoms.push([ring]);
+    geoms.push([capsuleRing([pa.x, pa.y], [pb.x, pb.y], capHalf)]);
   }
 
   if (geoms.length === 0) return [];
 
+  let merged: number[][][][];
   try {
-    return union(geoms[0], ...geoms.slice(1));
+    merged = union(geoms[0], ...geoms.slice(1));
   } catch (e) {
     console.warn("[metaball] union failed:", e);
-    // Degenerate input — return the unmerged bodies.
     return geoms as unknown as number[][][][];
+  }
+
+  // Carve out the surrounding empty cells so the join follows their outline.
+  const activeSet = new Set(allActive);
+  const carveR = r * (0.7 + (s.goo ?? 0.5) * 0.6); // "carve depth" slider
+  const carvers: Poly[] = [];
+  const seen = new Set<string>();
+  for (const k of compKeys) {
+    const { c, r: row } = parseKey(k);
+    for (let dc = -1; dc <= 1; dc++) {
+      for (let dr = -1; dr <= 1; dr++) {
+        if (dc === 0 && dr === 0) continue;
+        const nc = c + dc;
+        const nr = row + dr;
+        if (nc < 0 || nr < 0 || nc >= s.cols || nr >= s.rows) continue;
+        const nk = cellKey(nc, nr);
+        if (activeSet.has(nk) || seen.has(nk)) continue;
+        seen.add(nk);
+        const { x, y } = layout.center(nc, nr);
+        carvers.push([bodyRing(s.cellShape, x, y, carveR)]);
+      }
+    }
+  }
+
+  if (carvers.length === 0) return merged;
+  try {
+    return difference(merged, ...carvers);
+  } catch (e) {
+    console.warn("[metaball] carve failed:", e);
+    return merged;
   }
 }
 
@@ -285,9 +204,10 @@ export function componentUnionPath(
   layout: Layout,
   compKeys: string[],
   conns: { a: Cell; b: Cell }[],
+  allActive: string[] = compKeys,
 ): string {
   const merged = scaleMulti(
-    componentUnionMulti(s, layout, compKeys, conns),
+    componentUnionMulti(s, layout, compKeys, conns, allActive),
     layout.sx,
     layout.sy,
   );

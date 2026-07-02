@@ -189,7 +189,13 @@ export function GlyphArt({
 
         // Geometry mode: one boolean-union path → crisp, uniform outline.
         if (connectMode === "geometry") {
-          const d = componentUnionPath(s, layout, comp, connsInComp);
+          const d = componentUnionPath(
+            s,
+            layout,
+            comp,
+            connsInComp,
+            letter.active,
+          );
           return (
             <path
               key={`comp-${i}`}

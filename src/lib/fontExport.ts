@@ -130,7 +130,7 @@ function buildGlyph(
       (cn) =>
         compSet.has(`${cn.a.c},${cn.a.r}`) && compSet.has(`${cn.b.c},${cn.b.r}`),
     );
-    const multi = componentUnionMulti(s, layout, comp, conns);
+    const multi = componentUnionMulti(s, layout, comp, conns, letter.active);
     for (const poly of multi) for (const ring of poly) addPolygon(path, ring, toFont);
   }
   for (const k of letter.gaps ?? []) {

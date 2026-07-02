@@ -191,7 +191,7 @@ export function SettingsPanel({
           </div>
         </label>
         <Slider
-          label={connectMode === "geometry" ? "Neck spread" : "Neck width"}
+          label={connectMode === "geometry" ? "Neck width" : "Neck width"}
           value={s.connectionWidth}
           min={0.1}
           max={1}
@@ -200,7 +200,7 @@ export function SettingsPanel({
           onChange={(v) => update({ connectionWidth: v })}
         />
         <Slider
-          label={connectMode === "geometry" ? "Fillet curve" : "Goo strength"}
+          label={connectMode === "geometry" ? "Carve depth" : "Goo strength"}
           value={s.goo}
           min={0}
           max={1.5}
