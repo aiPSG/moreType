@@ -66,11 +66,9 @@ export function AlphabetPanel({ onEdit }: { onEdit: (letterId: string) => void }
                       alert("Assign at least one glyph before exporting a font.");
                       return;
                     }
-                    try {
-                      downloadFont(ab, state.letters);
-                    } catch (err) {
-                      alert("Font export failed: " + String(err));
-                    }
+                    downloadFont(ab, state.letters).catch((err) =>
+                      alert("Font export failed: " + String(err)),
+                    );
                   }}
                 >
                   ⬇ Export .ttf

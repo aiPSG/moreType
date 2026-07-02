@@ -1,4 +1,4 @@
-import * as opentype from "opentype.js";
+import type * as OT from "opentype.js";
 import type { Alphabet, Letter } from "../types";
 import {
   CELL,
@@ -27,10 +27,25 @@ const EM = 1000;
 const TAU = Math.PI * 2;
 
 type ToFont = (x: number, y: number) => [number, number];
+type OpentypeModule = typeof OT;
+
+/**
+ * opentype.js is loaded on demand (its own chunk) so the font library can
+ * never affect app startup — a parse or fetch failure only breaks the export
+ * button, not the whole app. CJS/ESM interop: the callable API may sit on the
+ * namespace or on its default export depending on the bundler.
+ */
+async function loadOpentype(): Promise<OpentypeModule> {
+  const m = (await import("opentype.js")) as unknown as {
+    Font?: unknown;
+    default?: OpentypeModule;
+  };
+  return (m.Font ? m : m.default) as OpentypeModule;
+}
 
 /** A smooth circle as 8 quadratic Bézier segments (TrueType-native curves). */
 function addQuadCircle(
-  path: opentype.Path,
+  path: OT.Path,
   cx: number,
   cy: number,
   r: number,
@@ -53,7 +68,7 @@ function addQuadCircle(
 }
 
 function addPolygon(
-  path: opentype.Path,
+  path: OT.Path,
   ring: readonly (readonly number[])[],
   toFont: ToFont,
 ) {
@@ -68,7 +83,11 @@ function addPolygon(
 }
 
 /** Build an opentype Glyph (and its advance) for one designed letter. */
-function buildGlyph(char: string, letter: Letter): opentype.Glyph {
+function buildGlyph(
+  opentype: OpentypeModule,
+  char: string,
+  letter: Letter,
+): OT.Glyph {
   const s = letter.settings;
   const layout = computeLayout(s);
   const { sx, sy } = layout;
@@ -130,10 +149,11 @@ function buildGlyph(char: string, letter: Letter): opentype.Glyph {
 }
 
 /** Build a font ArrayBuffer from an alphabet's assigned glyphs. */
-export function buildFont(
+export async function buildFont(
   alphabet: Alphabet,
   letters: Record<string, Letter>,
-): ArrayBuffer {
+): Promise<ArrayBuffer> {
+  const opentype = await loadOpentype();
   const notdef = new opentype.Glyph({
     name: ".notdef",
     unicode: 0,
@@ -141,7 +161,7 @@ export function buildFont(
     path: new opentype.Path(),
   });
 
-  const glyphs: opentype.Glyph[] = [notdef];
+  const glyphs: OT.Glyph[] = [notdef];
   let hasSpace = false;
 
   for (const [char, letterId] of Object.entries(alphabet.glyphs)) {
@@ -149,7 +169,7 @@ export function buildFont(
     const letter = letters[letterId];
     if (!letter) continue;
     if (char === " ") hasSpace = true;
-    glyphs.push(buildGlyph(char, letter));
+    glyphs.push(buildGlyph(opentype, char, letter));
   }
 
   if (!hasSpace) {
@@ -176,11 +196,11 @@ export function buildFont(
   return font.toArrayBuffer();
 }
 
-export function downloadFont(
+export async function downloadFont(
   alphabet: Alphabet,
   letters: Record<string, Letter>,
-) {
-  const buffer = buildFont(alphabet, letters);
+): Promise<void> {
+  const buffer = await buildFont(alphabet, letters);
   const blob = new Blob([buffer], { type: "font/ttf" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

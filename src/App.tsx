@@ -43,7 +43,9 @@ export default function App() {
   const editLetter = (id: string) => {
     const l = state.letters[id];
     if (!l) return;
-    setWorking(structuredClone(l));
+    // JSON clone instead of structuredClone: letters are plain JSON, and
+    // structuredClone is missing on older browsers (Safari < 15.4 etc.).
+    setWorking(JSON.parse(JSON.stringify(l)) as Letter);
     setTab("design");
   };
 

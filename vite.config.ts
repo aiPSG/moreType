@@ -5,6 +5,8 @@ export default defineConfig({
   plugins: [react()],
   base: "./",
   build: {
+    // Transpile down for a wider browser baseline (pre-ES2020 engines).
+    target: "es2019",
     // Stable, unhashed asset filenames. GitHub Pages re-hashing on every deploy
     // meant a cached index.html could reference a now-deleted chunk and white-
     // screen; with fixed names the referenced files always exist. Pages still

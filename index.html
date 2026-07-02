@@ -7,6 +7,74 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Boot watchdog: if the app bundle fails to start (cached 404, stale
+      // asset, script error before React mounts), retry the bundle once with
+      // a cache-busting URL, and otherwise show the actual error instead of a
+      // white page. Runs before any module code, so it can't be taken down by
+      // whatever breaks the bundle.
+      (function () {
+        var errs = [];
+        window.addEventListener("error", function (e) {
+          errs.push(
+            (e.message || "script error") +
+              (e.filename ? "\n  at " + e.filename + ":" + (e.lineno || 0) : ""),
+          );
+        });
+        window.addEventListener("unhandledrejection", function (e) {
+          var r = e.reason;
+          errs.push("promise: " + (r && r.message ? r.message : String(r)));
+        });
+        function esc(s) {
+          return String(s).replace(/</g, "&lt;");
+        }
+        function paint(msg) {
+          var el = document.createElement("div");
+          el.style.cssText =
+            "font-family:system-ui,sans-serif;max-width:720px;margin:10vh auto;padding:0 24px;color:#111";
+          el.innerHTML =
+            "<h2 style='margin:0 0 8px'>moreType failed to start</h2>" +
+            "<p style='color:#555'>" + msg + "</p>" +
+            (errs.length
+              ? "<pre style='background:#f5f5f5;border:1px solid #ddd;padding:10px;white-space:pre-wrap;font-size:12px'>" +
+                esc(errs.join("\n")) + "</pre>"
+              : "") +
+            "<pre style='color:#888;font-size:11px;white-space:pre-wrap'>" +
+            esc(navigator.userAgent) + "</pre>" +
+            "<button onclick='location.reload()' style='padding:8px 14px;cursor:pointer'>Reload</button>";
+          document.body.appendChild(el);
+        }
+        setTimeout(function () {
+          var root = document.getElementById("root");
+          if (window.__MT_BOOTED || (root && root.childElementCount > 0)) return;
+          var dyn;
+          try {
+            // Indirection avoids a parse error in browsers without import().
+            dyn = new Function("u", "return import(u)");
+          } catch (_) {
+            paint("This browser does not support JavaScript modules.");
+            return;
+          }
+          dyn("./assets/index.js?boot=" + Date.now())
+            .then(function () {
+              setTimeout(function () {
+                if (!window.__MT_BOOTED) {
+                  paint("The app bundle loaded but did not start.");
+                }
+              }, 1500);
+            })
+            .catch(function (err) {
+              errs.push(
+                "bundle retry failed: " +
+                  (err && err.message ? err.message : String(err)),
+              );
+              paint(
+                "The app bundle could not be loaded — usually a network problem or a stale cached file.",
+              );
+            });
+        }, 2500);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
