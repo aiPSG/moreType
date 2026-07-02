@@ -71,22 +71,27 @@ function addPolygon(
 function buildGlyph(char: string, letter: Letter): opentype.Glyph {
   const s = letter.settings;
   const layout = computeLayout(s);
-  const fullH = layout.height + layout.pad * 2;
+  const { sx, sy } = layout;
+  const fullH = layout.viewH;
   const scale = EM / fullH;
   const span = contentColumnSpan(letter);
 
   let advance = EM * 0.42;
-  let originX = layout.pad;
+  let originX = layout.pad * sx;
   if (span) {
     const bearing = CELL * 0.12;
     const leftX = layout.pad + span.minCol * layout.pitchX;
     const rightX = layout.pad + span.maxCol * layout.pitchX + CELL;
-    originX = leftX - bearing;
-    advance = (rightX - leftX + bearing * 2) * scale;
+    originX = (leftX - bearing) * sx;
+    advance = (rightX - leftX + bearing * 2) * sx * scale;
   }
 
-  // SVG y is down; font y is up. Baseline at 0, top of cell box at EM.
-  const toFont: ToFont = (x, y) => [(x - originX) * scale, (fullH - y) * scale];
+  // Geometry is in square cell space; apply the per-axis cell scale, then map
+  // SVG y-down to font y-up. Baseline at 0, top of the canvas at EM.
+  const toFont: ToFont = (x, y) => [
+    (x * sx - originX) * scale,
+    (fullH - y * sy) * scale,
+  ];
 
   const path = new opentype.Path();
   const comps = connectedComponents(letter.active, letter.connections);

@@ -127,13 +127,7 @@ export function GlyphArt({
   return (
     <Fragment>
       {background && bg !== "transparent" && (
-        <rect
-          x={0}
-          y={0}
-          width={layout.width + layout.pad * 2}
-          height={layout.height + layout.pad * 2}
-          fill={bg}
-        />
+        <rect x={0} y={0} width={layout.viewW} height={layout.viewH} fill={bg} />
       )}
       {connectMode === "goo" && (
         <defs>
@@ -151,7 +145,7 @@ export function GlyphArt({
               return (
                 <path
                   key={`g-${c}-${r}`}
-                  d={shapePath(s.cellShape, x, y, CELL / 2)}
+                  d={shapePath(s.cellShape, x, y, CELL / 2, layout.sx, layout.sy)}
                 />
               );
             }),
@@ -169,7 +163,14 @@ export function GlyphArt({
           return (
             <path
               key={`comp-${i}`}
-              d={shapePath(s.cellShape, x, y, layout.contentRadius)}
+              d={shapePath(
+                s.cellShape,
+                x,
+                y,
+                layout.contentRadius,
+                layout.sx,
+                layout.sy,
+              )}
               fill={s.fill ? s.fillColor : "none"}
               stroke={s.outline ? s.outlineColor : "none"}
               strokeWidth={s.outline ? s.outlineWidth * CELL : 0}
@@ -202,7 +203,13 @@ export function GlyphArt({
         }
 
         // Goo mode: fuse bodies + necks via the SVG filter.
-        const neckW = s.connectionWidth * layout.contentRadius * 2 * 0.9 || 1;
+        const neckW =
+          (s.connectionWidth *
+            layout.contentRadius *
+            2 *
+            0.9 *
+            (layout.sx + layout.sy)) /
+            2 || 1;
         return (
           <g key={`comp-${i}`} filter={`url(#${filterId})`}>
             {/* Connection necks (drawn first, fused by the goo filter). */}
@@ -212,10 +219,10 @@ export function GlyphArt({
               return (
                 <line
                   key={`neck-${i}-${j}`}
-                  x1={pa.x}
-                  y1={pa.y}
-                  x2={pb.x}
-                  y2={pb.y}
+                  x1={pa.x * layout.sx}
+                  y1={pa.y * layout.sy}
+                  x2={pb.x * layout.sx}
+                  y2={pb.y * layout.sy}
                   stroke="#000"
                   strokeWidth={neckW}
                   strokeLinecap="round"
@@ -229,7 +236,14 @@ export function GlyphArt({
               return (
                 <path
                   key={`body-${k}`}
-                  d={shapePath(s.cellShape, x, y, layout.contentRadius)}
+                  d={shapePath(
+                    s.cellShape,
+                    x,
+                    y,
+                    layout.contentRadius,
+                    layout.sx,
+                    layout.sy,
+                  )}
                   fill="#000"
                 />
               );
@@ -271,8 +285,8 @@ export function Glyph({
   className?: string;
 }) {
   const layout = computeLayout(letter.settings);
-  const w = layout.width + layout.pad * 2;
-  const h = layout.height + layout.pad * 2;
+  const w = layout.viewW;
+  const h = layout.viewH;
   return (
     <svg
       className={className}

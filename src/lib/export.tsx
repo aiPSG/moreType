@@ -94,12 +94,12 @@ export function composeText(
       }
       // Crop horizontally to the glyph's real content so empty grid columns
       // don't inflate spacing; keep full height for a consistent baseline.
-      const vbH = layout.height + layout.pad * 2;
+      const vbH = layout.viewH;
       const bearing = CELL * 0.12;
       const leftX = layout.pad + span.minCol * layout.pitchX;
       const rightX = layout.pad + span.maxCol * layout.pitchX + CELL;
-      const vbMinX = leftX - bearing;
-      const vbW = rightX - leftX + bearing * 2;
+      const vbMinX = (leftX - bearing) * layout.sx;
+      const vbW = (rightX - leftX + bearing * 2) * layout.sx;
       const w = (H * vbW) / vbH;
       placed.push({
         letter,

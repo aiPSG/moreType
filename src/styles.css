@@ -5,13 +5,13 @@
    =================================================================== */
 
 :root {
-  --bg: #f4f4f2;
+  --bg: #e8e8e4;
   --panel: #ffffff;
-  --ink: #111113;
-  --ink-soft: #4a4a50;
-  --muted: #9b9ba3;
-  --line: #e2e2e0;
-  --line-strong: #cfcfcd;
+  --ink: #0d0d0f;
+  --ink-soft: #33333a;
+  --muted: #6b6b74;
+  --line: #d6d6d1;
+  --line-strong: #b4b4ae;
   --field: #ffffff;
   --accent: #e5322b; /* Swiss red, used sparingly */
   --accent-ink: #ffffff;
@@ -28,14 +28,14 @@
 }
 
 [data-theme="dark"] {
-  --bg: #0d0d0f;
-  --panel: #161618;
-  --ink: #f3f3f5;
-  --ink-soft: #c4c4cc;
-  --muted: #6d6d76;
-  --line: #2a2a2e;
-  --line-strong: #3a3a40;
-  --field: #1d1d20;
+  --bg: #050507;
+  --panel: #19191c;
+  --ink: #f6f6f8;
+  --ink-soft: #d2d2da;
+  --muted: #94949e;
+  --line: #303036;
+  --line-strong: #4c4c55;
+  --field: #222226;
   --accent: #ff4d44;
   --accent-ink: #0d0d0f;
   --hover: rgba(255, 255, 255, 0.06);
@@ -69,16 +69,17 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 22px;
+  padding: 16px 24px;
   background: var(--panel);
-  border-bottom: 1px solid var(--line);
+  /* Heavy masthead rule — clear break between header and workspace. */
+  border-bottom: 2px solid var(--ink);
   flex: 0 0 auto;
 }
 .brand {
-  font-weight: 700;
-  font-size: 17px;
-  letter-spacing: -0.01em;
-  line-height: 1.1;
+  font-weight: 800;
+  font-size: 26px;
+  letter-spacing: -0.03em;
+  line-height: 1;
 }
 .brand span {
   color: var(--accent);
@@ -86,12 +87,12 @@ body {
 .brand em {
   display: block;
   font-style: normal;
-  font-weight: 400;
-  font-size: 9.5px;
-  color: var(--muted);
-  letter-spacing: 0.18em;
+  font-weight: 600;
+  font-size: 10px;
+  color: var(--ink-soft);
+  letter-spacing: 0.22em;
   text-transform: uppercase;
-  margin-top: 3px;
+  margin-top: 5px;
 }
 
 .tabs {
@@ -147,10 +148,10 @@ body {
   overflow-y: auto;
 }
 .left {
-  border-right: 1px solid var(--line);
+  border-right: 1px solid var(--line-strong);
 }
 .right {
-  border-left: 1px solid var(--line);
+  border-left: 1px solid var(--line-strong);
 }
 .center {
   display: flex;
@@ -185,9 +186,9 @@ body {
 .hint {
   margin: 0;
   text-align: center;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.02em;
-  color: var(--muted);
+  color: var(--ink-soft);
 }
 
 /* ---- Editor interactions ------------------------------------------- */
@@ -290,19 +291,20 @@ body {
 /* ---- Settings panel: sections divided by hairlines ----------------- */
 .settings section {
   padding: 16px 0;
-  border-top: 1px solid var(--line);
+  /* Strong Swiss section rule: each segment starts with a solid bar. */
+  border-top: 2px solid var(--ink);
 }
 .settings section:first-child {
   padding-top: 0;
   border-top: none;
 }
 .settings h3 {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.16em;
-  color: var(--muted);
+  color: var(--ink);
   margin: 0 0 14px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .field {
@@ -315,10 +317,13 @@ body {
 .field-label {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.02em;
   color: var(--ink-soft);
   margin-bottom: 7px;
+}
+.field.disabled {
+  opacity: 0.4;
 }
 .field-value {
   color: var(--ink);
@@ -488,12 +493,12 @@ hr {
 /* ---- Save box + library ------------------------------------------- */
 .save-box h3,
 .library h3 {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.16em;
-  color: var(--muted);
+  color: var(--ink);
   margin: 0 0 12px;
-  font-weight: 600;
+  font-weight: 700;
 }
 .save-box h4 {
   margin: 0 0 10px;
@@ -509,7 +514,7 @@ hr {
 .library {
   margin-top: 22px;
   padding-top: 18px;
-  border-top: 1px solid var(--line);
+  border-top: 2px solid var(--ink);
 }
 .library-grid {
   display: grid;

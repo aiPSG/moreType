@@ -15,9 +15,10 @@ function Slider(props: {
   step: number;
   onChange: (v: number) => void;
   fmt?: (v: number) => string;
+  disabled?: boolean;
 }) {
   return (
-    <label className="field">
+    <label className={`field ${props.disabled ? "disabled" : ""}`}>
       <span className="field-label">
         {props.label}
         <span className="field-value">
@@ -30,6 +31,7 @@ function Slider(props: {
         max={props.max}
         step={props.step}
         value={props.value}
+        disabled={props.disabled}
         onChange={(e) => props.onChange(Number(e.target.value))}
       />
     </label>
@@ -45,6 +47,7 @@ export function SettingsPanel({
 }) {
   const s = letter.settings;
   const connectMode = s.connectMode ?? "goo";
+  const lockAspect = s.lockCellAspect ?? true;
   const update = (patch: Partial<LetterSettings>) =>
     onChange({ ...letter, settings: { ...s, ...patch } });
 
@@ -56,7 +59,7 @@ export function SettingsPanel({
           label="Columns"
           value={s.cols}
           min={1}
-          max={12}
+          max={64}
           step={1}
           onChange={(v) => update({ cols: v })}
         />
@@ -64,10 +67,45 @@ export function SettingsPanel({
           label="Rows"
           value={s.rows}
           min={1}
-          max={12}
+          max={36}
           step={1}
           onChange={(v) => update({ rows: v })}
         />
+        <Slider
+          label="Cell width"
+          value={s.cellW ?? 1}
+          min={0.25}
+          max={2.5}
+          step={0.05}
+          fmt={(v) => `${Math.round(v * 100)}%`}
+          onChange={(v) =>
+            update(lockAspect ? { cellW: v, cellH: v } : { cellW: v })
+          }
+        />
+        <Slider
+          label="Cell height"
+          value={s.cellH ?? 1}
+          min={0.25}
+          max={2.5}
+          step={0.05}
+          fmt={(v) => `${Math.round(v * 100)}%`}
+          disabled={lockAspect}
+          onChange={(v) => update({ cellH: v })}
+        />
+        <label className="field checkbox">
+          <input
+            type="checkbox"
+            checked={lockAspect}
+            onChange={(e) =>
+              update(
+                e.target.checked
+                  ? { lockCellAspect: true, cellH: s.cellW ?? 1 }
+                  : { lockCellAspect: false },
+              )
+            }
+          />
+          <span>Lock height to width</span>
+        </label>
         <Slider
           label="Horizontal gap"
           value={s.gapX}

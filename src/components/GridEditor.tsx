@@ -34,8 +34,9 @@ export function GridEditor({
 }) {
   const s = letter.settings;
   const layout = computeLayout(s);
-  const w = layout.width + layout.pad * 2;
-  const h = layout.height + layout.pad * 2;
+  const { sx, sy } = layout;
+  const w = layout.viewW;
+  const h = layout.viewH;
 
   // Drag-painting state.
   const paint = useRef<{ active: boolean; mode: "add" | "remove" } | null>(null);
@@ -74,8 +75,8 @@ export function GridEditor({
         handles.push({
           a,
           b,
-          x: (pa.x + pb.x) / 2,
-          y: (pa.y + pb.y) / 2,
+          x: ((pa.x + pb.x) / 2) * sx,
+          y: ((pa.y + pb.y) / 2) * sy,
           on: connSet.has(connKey(a, b)),
         });
       }
@@ -111,10 +112,10 @@ export function GridEditor({
                 return (
                   <rect
                     key={`hit-${c}-${r}`}
-                    x={x - half}
-                    y={y - half}
-                    width={CELL}
-                    height={CELL}
+                    x={(x - half) * sx}
+                    y={(y - half) * sy}
+                    width={CELL * sx}
+                    height={CELL * sy}
                     fill="transparent"
                     className="cell-hit"
                     onPointerDown={(e) => {
@@ -180,11 +181,13 @@ export function GridEditor({
         <g>
           {Array.from({ length: Math.max(0, s.cols - 1) }).map((_, c) =>
             Array.from({ length: Math.max(0, s.rows - 1) }).map((__, r) => {
-              const { x, y } = gapCenter(layout, c, r);
+              const g0 = gapCenter(layout, c, r);
+              const x = g0.x * sx;
+              const y = g0.y * sy;
               const key = cellKey(c, r);
               const isActive = gapSet.has(key);
-              const hw = layout.pitchX * 0.5;
-              const hh = layout.pitchY * 0.5;
+              const hw = layout.pitchX * 0.5 * sx;
+              const hh = layout.pitchY * 0.5 * sy;
               return (
                 <g key={`gaphit-${c}-${r}`} className="gap-handle">
                   <rect

@@ -26,12 +26,20 @@ export const defaultSettings = (cols = 4, rows = 5): LetterSettings => ({
   cols,
   rows,
   cellShape: "circle",
-  gapX: 0.25,
-  gapY: 0.25,
-  contentScale: 0.7,
-  connectionWidth: 0.55,
+  gapX: 0,
+  gapY: 0,
+  cellW: 1,
+  cellH: 1,
+  lockCellAspect: true,
+  contentScale: 1,
+  // With gap 0 and content 100% adjacent circles touch (d = 2r). A neck that
+  // attaches at 60° (v = 2/3 → width 0.76) with Bézier handles of ~0.357r
+  // (goo 0.5 under the 0.15 + goo·0.77 mapping) reproduces the fillet arc of
+  // radius r exactly — the neck nestles perfectly into the gap between the
+  // neighbouring circles.
+  connectionWidth: 0.76,
   connectMode: "geometry",
-  goo: 0.6,
+  goo: 0.5,
   fill: true,
   fillColor: "#111111",
   bgColor: "transparent",
@@ -42,7 +50,16 @@ export const defaultSettings = (cols = 4, rows = 5): LetterSettings => ({
   gridColor: "#d8d8e0",
 });
 
-/** Layout maths derived from settings. All values in internal SVG units. */
+/**
+ * Layout maths derived from settings.
+ *
+ * All geometry (centers, radii, metaball math) lives in a *square* cell space
+ * where every cell box is CELL × CELL; independent cell width/height are
+ * applied as per-axis scale factors (sx, sy) on the final emitted coordinates.
+ * Computing in square space keeps circles circular for the metaball
+ * construction; affine scaling afterwards preserves tangency, so stretched
+ * cells stay perfectly fused.
+ */
 export interface Layout {
   pitchX: number;
   pitchY: number;
@@ -50,10 +67,16 @@ export interface Layout {
   height: number;
   /** Padding around the artwork to leave room for blur/outline bleed. */
   pad: number;
-  /** Center point of a cell in SVG coordinates. */
+  /** Center point of a cell in square-space coordinates. */
   center: (c: number, r: number) => { x: number; y: number };
-  /** Radius/half-size of a cell's content. */
+  /** Radius/half-size of a cell's content (square space). */
   contentRadius: number;
+  /** Per-axis scale from square space to final coordinates. */
+  sx: number;
+  sy: number;
+  /** Final (scaled) canvas size incl. padding. */
+  viewW: number;
+  viewH: number;
 }
 
 export const computeLayout = (s: LetterSettings): Layout => {
@@ -62,6 +85,8 @@ export const computeLayout = (s: LetterSettings): Layout => {
   const width = s.cols * CELL + (s.cols - 1) * s.gapX * CELL;
   const height = s.rows * CELL + (s.rows - 1) * s.gapY * CELL;
   const pad = CELL * 0.7;
+  const sx = s.cellW ?? 1;
+  const sy = s.cellH ?? 1;
   return {
     pitchX,
     pitchY,
@@ -69,6 +94,10 @@ export const computeLayout = (s: LetterSettings): Layout => {
     height,
     pad,
     contentRadius: (s.contentScale * CELL) / 2,
+    sx,
+    sy,
+    viewW: (width + pad * 2) * sx,
+    viewH: (height + pad * 2) * sy,
     center: (c, r) => ({
       x: pad + c * pitchX + CELL / 2,
       y: pad + r * pitchY + CELL / 2,
@@ -149,31 +178,43 @@ export function connectedComponents(
   return comps;
 }
 
-/** SVG path data for one cell's content shape, centered at (cx, cy). */
+/**
+ * SVG path data for one cell's content shape centered at square-space (cx, cy),
+ * emitted in final coordinates (scaled by sx, sy about the origin). Circles
+ * become true ellipse arcs when the cell box is non-square.
+ */
 export function shapePath(
   shape: LetterSettings["cellShape"],
   cx: number,
   cy: number,
   radius: number,
+  sx = 1,
+  sy = 1,
 ): string {
+  const X = (v: number) => (v * sx).toFixed(2);
+  const Y = (v: number) => (v * sy).toFixed(2);
+  const rx = radius * sx;
+  const ry = radius * sy;
   switch (shape) {
     case "circle":
-      return `M ${cx - radius} ${cy} a ${radius} ${radius} 0 1 0 ${
-        radius * 2
-      } 0 a ${radius} ${radius} 0 1 0 ${-radius * 2} 0 Z`;
-    case "square": {
-      const s = radius;
-      return `M ${cx - s} ${cy - s} H ${cx + s} V ${cy + s} H ${cx - s} Z`;
-    }
+      return `M ${X(cx - radius)} ${Y(cy)} a ${rx} ${ry} 0 1 0 ${
+        rx * 2
+      } 0 a ${rx} ${ry} 0 1 0 ${-rx * 2} 0 Z`;
+    case "square":
+      return `M ${X(cx - radius)} ${Y(cy - radius)} L ${X(cx + radius)} ${Y(
+        cy - radius,
+      )} L ${X(cx + radius)} ${Y(cy + radius)} L ${X(cx - radius)} ${Y(
+        cy + radius,
+      )} Z`;
     case "diamond":
-      return `M ${cx} ${cy - radius} L ${cx + radius} ${cy} L ${cx} ${
-        cy + radius
-      } L ${cx - radius} ${cy} Z`;
+      return `M ${X(cx)} ${Y(cy - radius)} L ${X(cx + radius)} ${Y(cy)} L ${X(
+        cx,
+      )} ${Y(cy + radius)} L ${X(cx - radius)} ${Y(cy)} Z`;
     case "triangle":
       // Fits exactly within the cell box (±radius) so triangles tile without
       // overlapping when the gap is 0.
-      return `M ${cx} ${cy - radius} L ${cx + radius} ${cy + radius} L ${
-        cx - radius
-      } ${cy + radius} Z`;
+      return `M ${X(cx)} ${Y(cy - radius)} L ${X(cx + radius)} ${Y(
+        cy + radius,
+      )} L ${X(cx - radius)} ${Y(cy + radius)} Z`;
   }
 }

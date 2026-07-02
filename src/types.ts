@@ -30,6 +30,13 @@ export interface LetterSettings {
   /** Vertical gap between cells, as a fraction of the cell box size. */
   gapY: number;
 
+  /** Cell box width multiplier (1 = square base size). */
+  cellW: number;
+  /** Cell box height multiplier (1 = square base size). */
+  cellH: number;
+  /** Keep cell height equal to cell width. */
+  lockCellAspect: boolean;
+
   /** Size of the cell *content* relative to the cell box (0–1). */
   contentScale: number;
 

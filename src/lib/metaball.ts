@@ -119,54 +119,62 @@ function sampleCubic(
 }
 
 /**
- * Metaball neck between two circles, after Varun Vachhar's construction, but
- * with the distance gate removed and inputs clamped so an explicitly drawn
- * connection always produces a neck. `v` (from connection width) controls how
- * far around each circle the neck attaches; `handleSize` (from goo) controls
- * how concave/flared the fillet is. Returned as a polygon ring.
+ * Metaball neck between two equal circles, built around the "perfect fit":
+ * the fillet circle of radius r that is tangent to both bodies — i.e. the
+ * curvature of the neighbouring grid circles. Its attach angle is
+ *   β = atan2(√((2r)² − (d/2)²), d/2)
+ * (60° for touching orthogonal neighbours, 45° for diagonals), and the exact
+ * Bézier handle for that fillet arc is (4/3)·tan(φ/4)·r with φ = π − 2β.
+ * `widthFactor`/`filletFactor` scale attach angle and handle length relative
+ * to this ideal (1 = perfect fit), so the sliders modulate around a neck that
+ * nestles exactly into the gap between the circles at any grid distance.
  */
 function metaballNeckRing(
   c1: Pair,
   r1: number,
   c2: Pair,
   r2: number,
-  v: number,
-  handleSize: number,
+  widthFactor: number,
+  filletFactor: number,
 ): Ring | null {
   const d = dist(c1, c2);
   if (d === 0 || r1 === 0 || r2 === 0) return null;
 
-  const u1 = Math.acos(
-    clamp((r1 * r1 + d * d - r2 * r2) / (2 * r1 * d), -1, 1),
-  );
-  const u2 = Math.acos(
-    clamp((r2 * r2 + d * d - r1 * r1) / (2 * r2 * d), -1, 1),
-  );
-
   const a = Math.atan2(c2[1] - c1[1], c2[0] - c1[0]);
+  const r = (r1 + r2) / 2;
+  const half = d / 2;
+  const beta = Math.atan2(
+    Math.sqrt(Math.max(0, (2 * r) ** 2 - half * half)),
+    half,
+  );
   const maxSpread = Math.acos(clamp((r1 - r2) / d, -1, 1));
+  // Floor keeps a slim visible neck when bodies are too far apart for a
+  // radius-r fillet circle to exist (β → 0).
+  const attach = clamp(
+    widthFactor * Math.max(beta, 0.15),
+    0.06,
+    maxSpread * 0.92,
+  );
 
-  const angle1 = a + u1 + (maxSpread - u1) * v;
-  const angle2 = a - u1 - (maxSpread - u1) * v;
-  const angle3 = a + Math.PI - u2 - (Math.PI - u2 - maxSpread) * v;
-  const angle4 = a - Math.PI + u2 + (Math.PI - u2 - maxSpread) * v;
+  const phi = Math.max(0.05, Math.PI - 2 * attach);
+  const hIdeal = (4 / 3) * Math.tan(phi / 4) * r;
+
+  const angle1 = a + attach;
+  const angle2 = a - attach;
+  const angle3 = a + Math.PI - attach;
+  const angle4 = a + Math.PI + attach;
 
   const p1 = add(c1, dir(angle1), r1);
   const p2 = add(c1, dir(angle2), r1);
   const p3 = add(c2, dir(angle3), r2);
   const p4 = add(c2, dir(angle4), r2);
 
-  const totalRadius = r1 + r2;
-  const d2 =
-    Math.min(v * handleSize, dist(p1, p3) / totalRadius) *
-    Math.min(1, (d * 2) / totalRadius);
-  const h1 = r1 * d2;
-  const h2 = r2 * d2;
+  const h = Math.min(hIdeal * filletFactor, dist(p1, p3) * 0.5);
 
-  const cp1 = add(p1, dir(angle1 - HALF_PI), h1);
-  const cp3 = add(p3, dir(angle3 + HALF_PI), h2);
-  const cp4 = add(p4, dir(angle4 - HALF_PI), h2);
-  const cp2 = add(p2, dir(angle2 + HALF_PI), h1);
+  const cp1 = add(p1, dir(angle1 - HALF_PI), h);
+  const cp3 = add(p3, dir(angle3 + HALF_PI), h);
+  const cp4 = add(p4, dir(angle4 - HALF_PI), h);
+  const cp2 = add(p2, dir(angle2 + HALF_PI), h);
 
   // p1 →(curve)→ p3 → (dip through c2) → p4 →(curve)→ p2 → (dip through c1) → p1
   //
@@ -205,6 +213,18 @@ function ringToSubpath(ring: readonly (readonly number[])[]): string {
   return d + " Z";
 }
 
+/** Scale a MultiPolygon from square cell space into final coordinates. */
+function scaleMulti(
+  m: number[][][][],
+  sx: number,
+  sy: number,
+): number[][][][] {
+  if (sx === 1 && sy === 1) return m;
+  return m.map((poly) =>
+    poly.map((ring) => ring.map(([x, y]) => [x * sx, y * sy])),
+  );
+}
+
 /**
  * Boolean-union geometry for a connected component, as a MultiPolygon of rings
  * (SVG coordinates). Shared by SVG rendering and font generation.
@@ -226,9 +246,11 @@ export function componentUnionMulti(
     geoms.push([bodyRing(s.cellShape, x, y, r)]);
   }
 
-  // connectionWidth → spread (v) for metaballs, or half-width for capsules.
-  const v = clamp(0.12 + s.connectionWidth * 0.72, 0.05, 0.95);
-  const handleSize = 0.8 + s.goo * 1.6;
+  // Sliders scale relative to the "perfect fit" neck (see metaballNeckRing):
+  // at the defaults (width 0.76, fillet 0.5) both factors are exactly 1 and
+  // every neck nestles precisely into the gap between the grid circles.
+  const widthFactor = (s.connectionWidth ?? 0.76) / 0.76;
+  const filletFactor = (s.goo ?? 0.5) / 0.5;
   const capHalf = Math.max(2, s.connectionWidth * r);
 
   const inComp = new Set(compKeys);
@@ -241,7 +263,7 @@ export function componentUnionMulti(
     const c1: Pair = [pa.x, pa.y];
     const c2: Pair = [pb.x, pb.y];
     const ring = isCircle
-      ? metaballNeckRing(c1, r, c2, r, v, handleSize)
+      ? metaballNeckRing(c1, r, c2, r, widthFactor, filletFactor)
       : capsuleRing(c1, c2, capHalf);
     if (ring) geoms.push([ring]);
   }
@@ -264,7 +286,11 @@ export function componentUnionPath(
   compKeys: string[],
   conns: { a: Cell; b: Cell }[],
 ): string {
-  const merged = componentUnionMulti(s, layout, compKeys, conns);
+  const merged = scaleMulti(
+    componentUnionMulti(s, layout, compKeys, conns),
+    layout.sx,
+    layout.sy,
+  );
   let d = "";
   for (const poly of merged) for (const ring of poly) d += ringToSubpath(ring) + " ";
   return d.trim();
@@ -319,7 +345,7 @@ export function gapPath(
   gc: number,
   gr: number,
 ): string {
-  const res = gapMulti(s, layout, gc, gr);
+  const res = scaleMulti(gapMulti(s, layout, gc, gr), layout.sx, layout.sy);
   let d = "";
   for (const poly of res) for (const ring of poly) d += ringToSubpath(ring) + " ";
   return d.trim();
