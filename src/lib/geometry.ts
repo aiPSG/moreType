@@ -32,12 +32,11 @@ export const defaultSettings = (cols = 4, rows = 5): LetterSettings => ({
   cellH: 1,
   lockCellAspect: true,
   contentScale: 1,
-  // Neck width 0.5 leaves the join narrower than a body, so the bodies' own
-  // arcs sweep in to form a concave "waist" — the connection traces the
-  // surrounding circles instead of filling to a flat bar. Carve depth (goo)
-  // 0.5 sizes the carving cells exactly body-sized, so the join is also
-  // bounded precisely by the arcs of the empty neighbours.
-  connectionWidth: 0.5,
+  // With gap 0 and content 100% adjacent circles touch (d = 2r). A neck that
+  // attaches at 60° (neck spread 0.76) with Bézier handles from fillet 0.5
+  // reproduces the fillet arc of radius r exactly — the neck nestles perfectly
+  // into the gap between the neighbouring circles as a smooth metaball join.
+  connectionWidth: 0.76,
   connectMode: "geometry",
   goo: 0.5,
   fill: true,

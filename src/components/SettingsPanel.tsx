@@ -241,7 +241,7 @@ export function SettingsPanel({
           </div>
         </label>
         <Num
-          label="Neck width"
+          label={connectMode === "geometry" ? "Neck spread" : "Neck width"}
           value={s.connectionWidth}
           min={0.1}
           max={1}
@@ -249,7 +249,7 @@ export function SettingsPanel({
           onChange={(v) => update({ connectionWidth: v })}
         />
         <Num
-          label={connectMode === "geometry" ? "Carve depth" : "Goo strength"}
+          label={connectMode === "geometry" ? "Fillet curve" : "Goo strength"}
           value={s.goo}
           min={0}
           max={1.5}
