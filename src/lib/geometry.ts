@@ -32,13 +32,12 @@ export const defaultSettings = (cols = 4, rows = 5): LetterSettings => ({
   cellH: 1,
   lockCellAspect: true,
   contentScale: 1,
-  // With gap 0 and content 100% adjacent circles touch (d = 2r). A neck that
-  // attaches at 60° (neck spread 0.76) with Bézier handles from fillet 0.5
-  // reproduces the fillet arc of radius r exactly — the neck nestles perfectly
-  // into the gap between the neighbouring circles as a smooth metaball join.
-  connectionWidth: 0.76,
+  // Neck spread 0.55 with fillet curve 0.6 melts connected circles together
+  // along smooth convex fillets, leaving any enclosed negative space between
+  // three circles round (not pinched to a point).
+  connectionWidth: 0.55,
   connectMode: "geometry",
-  goo: 0.5,
+  goo: 0.6,
   fill: true,
   fillColor: "#111111",
   bgColor: "transparent",
