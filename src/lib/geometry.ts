@@ -32,12 +32,12 @@ export const defaultSettings = (cols = 4, rows = 5): LetterSettings => ({
   cellH: 1,
   lockCellAspect: true,
   contentScale: 1,
-  // Neck spread 0.55 with fillet curve 0.6 melts connected circles together
+  // Neck spread 0.625 with fillet curve 0.4 melts connected circles together
   // along smooth convex fillets, leaving any enclosed negative space between
   // three circles round (not pinched to a point).
-  connectionWidth: 0.55,
+  connectionWidth: 0.625,
   connectMode: "geometry",
-  goo: 0.6,
+  goo: 0.4,
   fill: true,
   fillColor: "#111111",
   bgColor: "transparent",
