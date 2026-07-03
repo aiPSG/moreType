@@ -74,6 +74,39 @@
             });
         }, 2500);
       })();
+
+      // CSS watchdog: the stylesheet is injected as a plain <link> with no
+      // cache-busting query, so a stale or cached-404 copy leaves the app
+      // rendered but completely unstyled (raw HTML). The JS watchdog above
+      // can't heal this — the built bundle no longer imports the CSS (Vite
+      // extracts it to the <link>). If our sentinel custom property (--ink)
+      // isn't applied shortly after load, re-inject the stylesheet with a
+      // cache-busting URL so a fresh copy is fetched.
+      (function () {
+        function styled() {
+          return (
+            getComputedStyle(document.documentElement)
+              .getPropertyValue("--ink")
+              .trim() !== ""
+          );
+        }
+        function heal(tries) {
+          if (styled()) return;
+          if (tries <= 0) {
+            var link = document.createElement("link");
+            link.rel = "stylesheet";
+            link.href = "./assets/index.css?boot=" + Date.now();
+            document.head.appendChild(link);
+            return;
+          }
+          setTimeout(function () {
+            heal(tries - 1);
+          }, 300);
+        }
+        window.addEventListener("load", function () {
+          heal(3);
+        });
+      })();
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>

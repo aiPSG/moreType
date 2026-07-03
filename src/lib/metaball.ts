@@ -128,6 +128,13 @@ function scaleMulti(
  * subtracted, so the neck's concave edges are literally the arcs of the
  * surrounding circles. "Neck width" sets how wide the bridge is before the
  * neighbours carve it; "carve depth" scales the size of the carving cells.
+ *
+ * The carve is then bounded so a connection can never look broken: the cell
+ * bodies and a guaranteed thin neck between connected pairs are unioned back
+ * in afterwards. This keeps bodies perfectly round (deep carves used to chew
+ * them into pinwheels) and stops the neck from ever being severed (deep carves
+ * used to split a component into two pieces) — while leaving the gentle
+ * default carve, which only shapes the gap between cells, untouched.
  */
 export function componentUnionMulti(
   s: LetterSettings,
@@ -138,25 +145,34 @@ export function componentUnionMulti(
 ): number[][][][] {
   const r = layout.contentRadius;
 
-  const geoms: Poly[] = [];
+  // Cell bodies, kept separate so they can be restored after carving.
+  const bodies: Poly[] = [];
   for (const k of compKeys) {
     const { c, r: row } = parseKey(k);
     const { x, y } = layout.center(c, row);
-    geoms.push([bodyRing(s.cellShape, x, y, r)]);
+    bodies.push([bodyRing(s.cellShape, x, y, r)]);
   }
 
   // Bridge width before the neighbours carve it (full body width at 1.0).
   const capHalf = Math.max(1, (s.connectionWidth ?? 1) * r);
+  // A thin neck that survives the carve so a join can never be severed. Capped
+  // to sit inside the default carve (so it doesn't fatten it) and never wider
+  // than the requested bridge (so deliberately thin necks stay thin).
+  const neckHalf = Math.min(capHalf, r * 0.32);
   const inComp = new Set(compKeys);
+  const fatNecks: Poly[] = [];
+  const thinNecks: Poly[] = [];
   for (const cn of conns) {
     const ka = cellKey(cn.a.c, cn.a.r);
     const kb = cellKey(cn.b.c, cn.b.r);
     if (!inComp.has(ka) || !inComp.has(kb)) continue;
     const pa = layout.center(cn.a.c, cn.a.r);
     const pb = layout.center(cn.b.c, cn.b.r);
-    geoms.push([capsuleRing([pa.x, pa.y], [pb.x, pb.y], capHalf)]);
+    fatNecks.push([capsuleRing([pa.x, pa.y], [pb.x, pb.y], capHalf)]);
+    thinNecks.push([capsuleRing([pa.x, pa.y], [pb.x, pb.y], neckHalf)]);
   }
 
+  const geoms = [...bodies, ...fatNecks];
   if (geoms.length === 0) return [];
 
   let merged: number[][][][];
@@ -189,12 +205,22 @@ export function componentUnionMulti(
     }
   }
 
-  if (carvers.length === 0) return merged;
+  let carved = merged;
+  if (carvers.length > 0) {
+    try {
+      carved = difference(merged, ...carvers);
+    } catch (e) {
+      console.warn("[metaball] carve failed:", e);
+      carved = merged;
+    }
+  }
+
+  // Restore whole bodies + a guaranteed neck so the result never looks broken.
   try {
-    return difference(merged, ...carvers);
+    return union(carved, ...bodies, ...thinNecks);
   } catch (e) {
-    console.warn("[metaball] carve failed:", e);
-    return merged;
+    console.warn("[metaball] restore failed:", e);
+    return carved;
   }
 }
 
