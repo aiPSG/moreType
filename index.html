@@ -55,23 +55,44 @@
             paint("This browser does not support JavaScript modules.");
             return;
           }
-          dyn("./assets/index.js?boot=" + Date.now())
-            .then(function () {
-              setTimeout(function () {
-                if (!window.__MT_BOOTED) {
-                  paint("The app bundle loaded but did not start.");
+          // Right after a deploy the GitHub Pages edge can briefly fail to
+          // serve the freshly-published bundle (propagation lag), so a single
+          // retry often isn't enough. Retry a handful of times with backoff so
+          // the window self-heals silently instead of showing the error page.
+          var MAX = 6;
+          function booted() {
+            var el = document.getElementById("root");
+            return window.__MT_BOOTED || (el && el.childElementCount > 0);
+          }
+          function attempt(n) {
+            if (booted()) return;
+            dyn("./assets/index.js?boot=" + Date.now() + "." + n)
+              .then(function () {
+                setTimeout(function () {
+                  if (booted()) return;
+                  if (n < MAX) attempt(n + 1);
+                  else paint("The app bundle loaded but did not start.");
+                }, 1200);
+              })
+              .catch(function (err) {
+                if (n < MAX) {
+                  setTimeout(function () {
+                    attempt(n + 1);
+                  }, Math.min(3000, 600 * n));
+                } else {
+                  errs.push(
+                    "bundle retry failed after " +
+                      MAX +
+                      " tries: " +
+                      (err && err.message ? err.message : String(err)),
+                  );
+                  paint(
+                    "The app bundle could not be loaded — usually a network problem or a stale cached file.",
+                  );
                 }
-              }, 1500);
-            })
-            .catch(function (err) {
-              errs.push(
-                "bundle retry failed: " +
-                  (err && err.message ? err.message : String(err)),
-              );
-              paint(
-                "The app bundle could not be loaded — usually a network problem or a stale cached file.",
-              );
-            });
+              });
+          }
+          attempt(1);
         }, 2500);
       })();
 
