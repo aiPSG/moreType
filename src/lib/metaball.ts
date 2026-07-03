@@ -127,14 +127,18 @@ function scaleMulti(
  * are bridged with a bar and unioned, then the *empty* neighbouring cells are
  * subtracted, so the neck's concave edges are literally the arcs of the
  * surrounding circles. "Neck width" sets how wide the bridge is before the
- * neighbours carve it; "carve depth" scales the size of the carving cells.
+ * neighbours carve it; "carve depth" tunes how far the join is scooped toward
+ * those arcs.
  *
- * The carve is then bounded so a connection can never look broken: the cell
- * bodies and a guaranteed thin neck between connected pairs are unioned back
- * in afterwards. This keeps bodies perfectly round (deep carves used to chew
- * them into pinwheels) and stops the neck from ever being severed (deep carves
- * used to split a component into two pieces) — while leaving the gentle
- * default carve, which only shapes the gap between cells, untouched.
+ * Two invariants keep the join honest and unbreakable, without ever inserting
+ * a straight "dumbbell" bar:
+ *  - The carving cells are capped at the *true* body radius, so they can only
+ *    ever trace the actual surrounding circles — never over-carve past them.
+ *    A same-size neighbour circle is tangent to the bodies it sits between, so
+ *    the carve hugs the arcs and can never cut a component into two pieces.
+ *  - The whole cell bodies are unioned back afterwards, so bodies stay
+ *    perfectly round even in dense junctions; only the gap between cells is
+ *    ever shaped.
  */
 export function componentUnionMulti(
   s: LetterSettings,
@@ -155,24 +159,18 @@ export function componentUnionMulti(
 
   // Bridge width before the neighbours carve it (full body width at 1.0).
   const capHalf = Math.max(1, (s.connectionWidth ?? 1) * r);
-  // A thin neck that survives the carve so a join can never be severed. Capped
-  // to sit inside the default carve (so it doesn't fatten it) and never wider
-  // than the requested bridge (so deliberately thin necks stay thin).
-  const neckHalf = Math.min(capHalf, r * 0.32);
   const inComp = new Set(compKeys);
-  const fatNecks: Poly[] = [];
-  const thinNecks: Poly[] = [];
+  const necks: Poly[] = [];
   for (const cn of conns) {
     const ka = cellKey(cn.a.c, cn.a.r);
     const kb = cellKey(cn.b.c, cn.b.r);
     if (!inComp.has(ka) || !inComp.has(kb)) continue;
     const pa = layout.center(cn.a.c, cn.a.r);
     const pb = layout.center(cn.b.c, cn.b.r);
-    fatNecks.push([capsuleRing([pa.x, pa.y], [pb.x, pb.y], capHalf)]);
-    thinNecks.push([capsuleRing([pa.x, pa.y], [pb.x, pb.y], neckHalf)]);
+    necks.push([capsuleRing([pa.x, pa.y], [pb.x, pb.y], capHalf)]);
   }
 
-  const geoms = [...bodies, ...fatNecks];
+  const geoms = [...bodies, ...necks];
   if (geoms.length === 0) return [];
 
   let merged: number[][][][];
@@ -184,8 +182,11 @@ export function componentUnionMulti(
   }
 
   // Carve out the surrounding empty cells so the join follows their outline.
+  // Capped at the true body radius r: a same-size neighbour is tangent to the
+  // bodies it sits between, so the carve traces the real circles and can never
+  // cut through a neck (bigger carvers would sever the join / gnaw the bodies).
   const activeSet = new Set(allActive);
-  const carveR = r * (0.7 + (s.goo ?? 0.5) * 0.6); // "carve depth" slider
+  const carveR = r * Math.min(1, 0.7 + (s.goo ?? 0.5) * 0.6); // "carve depth"
   const carvers: Poly[] = [];
   const seen = new Set<string>();
   for (const k of compKeys) {
@@ -215,9 +216,9 @@ export function componentUnionMulti(
     }
   }
 
-  // Restore whole bodies + a guaranteed neck so the result never looks broken.
+  // Restore whole bodies so cells stay perfectly round in dense junctions.
   try {
-    return union(carved, ...bodies, ...thinNecks);
+    return union(carved, ...bodies);
   } catch (e) {
     console.warn("[metaball] restore failed:", e);
     return carved;

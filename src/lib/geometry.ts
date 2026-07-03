@@ -32,10 +32,12 @@ export const defaultSettings = (cols = 4, rows = 5): LetterSettings => ({
   cellH: 1,
   lockCellAspect: true,
   contentScale: 1,
-  // Neck width 1 = bridge as wide as a body; carve depth (goo) 0.5 makes the
-  // carving cells exactly body-sized, so the join is bounded precisely by the
-  // arcs of the surrounding circles.
-  connectionWidth: 1,
+  // Neck width 0.5 leaves the join narrower than a body, so the bodies' own
+  // arcs sweep in to form a concave "waist" — the connection traces the
+  // surrounding circles instead of filling to a flat bar. Carve depth (goo)
+  // 0.5 sizes the carving cells exactly body-sized, so the join is also
+  // bounded precisely by the arcs of the empty neighbours.
+  connectionWidth: 0.5,
   connectMode: "geometry",
   goo: 0.5,
   fill: true,
