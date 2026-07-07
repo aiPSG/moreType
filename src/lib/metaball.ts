@@ -253,6 +253,10 @@ export function componentUnionMulti(
   const v = clamp(0.12 + s.connectionWidth * 0.72, 0.05, 0.95);
   const handleSize = 0.8 + s.goo * 1.6;
   const capHalf = Math.max(2, s.connectionWidth * r);
+  // A "straight" connection between circles spans the full body width, so its
+  // sides are tangent to the end circles — a clean stadium, not a narrow bar
+  // with the circles bulging past it (the "dumbbell").
+  const straightHalf = r;
 
   const inComp = new Set(compKeys);
   for (const cn of conns) {
@@ -263,12 +267,13 @@ export function componentUnionMulti(
     const pb = layout.center(cn.b.c, cn.b.r);
     const c1: Pair = [pa.x, pa.y];
     const c2: Pair = [pb.x, pb.y];
-    // A "straight" connection uses a plain bar with no fillet, even for
-    // circles; non-circular shapes always use the bar.
-    const ring =
-      isCircle && cn.style !== "straight"
-        ? metaballNeckRing(c1, r, c2, r, v, handleSize)
-        : capsuleRing(c1, c2, capHalf);
+    // Circles: fillet by default, full-width stadium bar when "straight".
+    // Non-circular shapes always use the connectionWidth-sized bar.
+    const ring = isCircle
+      ? cn.style === "straight"
+        ? capsuleRing(c1, c2, straightHalf)
+        : metaballNeckRing(c1, r, c2, r, v, handleSize)
+      : capsuleRing(c1, c2, capHalf);
     if (ring) geoms.push([ring]);
   }
 
