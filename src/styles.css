@@ -269,11 +269,102 @@ body {
   stroke-width: 2.5;
   opacity: 0.7;
 }
-.conn-handle.on .conn-dot {
+.conn-handle.fillet .conn-dot {
   fill: var(--accent);
 }
-.conn-handle:hover .conn-dot {
+.conn-handle.straight .conn-bar {
+  fill: var(--accent);
+}
+.conn-handle:hover .conn-dot,
+.conn-handle:hover .conn-bar {
   opacity: 1;
+}
+.conn-hit {
+  fill: transparent;
+}
+
+/* ---- Selection highlights + mirror axis ---------------------------- */
+.sel-cell {
+  fill: color-mix(in srgb, var(--accent) 16%, transparent);
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+}
+.sel-gap {
+  fill: color-mix(in srgb, var(--accent) 22%, transparent);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.mirror-axis {
+  cursor: grab;
+}
+.mirror-axis .axis-hit {
+  stroke: transparent;
+  stroke-width: 20;
+}
+.mirror-axis .axis-line {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 8 5;
+  pointer-events: none;
+}
+.mirror-axis .axis-grip {
+  fill: var(--accent);
+  pointer-events: none;
+}
+
+/* ---- Arrange bar (move / mirror) ----------------------------------- */
+.arrange-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0 2px;
+}
+.arrange-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  min-width: 92px;
+}
+.link-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 11px;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+.arrange-group {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.arrange-group > * + * {
+  border-left: 1px solid var(--line);
+}
+.bar-btn {
+  height: 30px;
+  padding: 0 12px;
+  border: none;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.bar-btn:hover:not(:disabled) {
+  background: var(--hover);
+}
+.bar-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 .gap-dot {
   pointer-events: none;

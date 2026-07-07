@@ -233,7 +233,7 @@ export function componentUnionMulti(
   s: LetterSettings,
   layout: Layout,
   compKeys: string[],
-  conns: { a: Cell; b: Cell }[],
+  conns: { a: Cell; b: Cell; style?: "fillet" | "straight" }[],
   _allActive: string[] = compKeys,
 ): number[][][][] {
   const r = layout.contentRadius;
@@ -263,9 +263,12 @@ export function componentUnionMulti(
     const pb = layout.center(cn.b.c, cn.b.r);
     const c1: Pair = [pa.x, pa.y];
     const c2: Pair = [pb.x, pb.y];
-    const ring = isCircle
-      ? metaballNeckRing(c1, r, c2, r, v, handleSize)
-      : capsuleRing(c1, c2, capHalf);
+    // A "straight" connection uses a plain bar with no fillet, even for
+    // circles; non-circular shapes always use the bar.
+    const ring =
+      isCircle && cn.style !== "straight"
+        ? metaballNeckRing(c1, r, c2, r, v, handleSize)
+        : capsuleRing(c1, c2, capHalf);
     if (ring) geoms.push([ring]);
   }
 

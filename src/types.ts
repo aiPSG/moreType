@@ -17,6 +17,13 @@ export interface Cell {
 export interface Connection {
   a: Cell;
   b: Cell;
+  /**
+   * Neck style for this specific connection (per-connection, not global):
+   *  - "fillet" (default): smooth metaball fillet.
+   *  - "straight": a plain straight bar with no curving.
+   * Absent = "fillet" (letters saved before this feature).
+   */
+  style?: "fillet" | "straight";
 }
 
 export interface LetterSettings {

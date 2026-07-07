@@ -2,6 +2,14 @@ import { useEffect, useState } from "react";
 import type { Letter } from "./types";
 import { newLetter, store, useStore } from "./store";
 import { useUndoable } from "./hooks/useUndoable";
+import {
+  defaultAxis,
+  emptySelection,
+  mirrorLetter,
+  moveLetter,
+  type MirrorAxis,
+  type Selection,
+} from "./lib/transform";
 import { GridEditor, type EditMode } from "./components/GridEditor";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { AlphabetPanel } from "./components/AlphabetPanel";
@@ -62,6 +70,50 @@ export default function App() {
       ...working,
       settings: { ...working.settings, showGrid: !working.settings.showGrid },
     });
+
+  // ---- Selection + arrange (move / mirror) --------------------------------
+  const [selection, setSelection] = useState<Selection>(emptySelection());
+  const [axis, setAxis] = useState<MirrorAxis | null>(null);
+
+  const toggleSelect = (kind: "cell" | "gap", key: string) =>
+    setSelection((sel) => {
+      const list = kind === "cell" ? sel.cells : sel.gaps;
+      const next = list.includes(key)
+        ? list.filter((k) => k !== key)
+        : [...list, key];
+      return kind === "cell"
+        ? { ...sel, cells: next }
+        : { ...sel, gaps: next };
+    });
+  const clearSelection = () => setSelection(emptySelection());
+  const selectionCount = selection.cells.length + selection.gaps.length;
+
+  const shiftAxis = (a: MirrorAxis, off: [number, number]): MirrorAxis => ({
+    ...a,
+    a2: a.a2 + 2 * (a.orient === "v" ? off[0] : off[1]),
+  });
+
+  const doMove = (dc: number, dr: number) => {
+    const res = moveLetter(working, selection, dc, dr);
+    setWorking(res.letter);
+    setSelection(res.selection);
+    if (axis) setAxis(shiftAxis(axis, res.offset));
+  };
+
+  const doMirror = (copy: boolean) => {
+    const ax = axis ?? defaultAxis(working.settings.cols, working.settings.rows, "v");
+    const res = mirrorLetter(working, selection, ax, copy);
+    setWorking(res.letter);
+    setSelection(res.selection);
+    setAxis(shiftAxis(ax, res.offset));
+  };
+
+  const toggleAxis = (orient: "v" | "h") =>
+    setAxis((a) =>
+      a && a.orient === orient
+        ? null
+        : defaultAxis(working.settings.cols, working.settings.rows, orient),
+    );
   const [assignChar, setAssignChar] = useState("");
   const [assignAlphabet, setAssignAlphabet] = useState(
     state.activeAlphabetId ?? "",
@@ -78,6 +130,8 @@ export default function App() {
     // JSON clone instead of structuredClone: letters are plain JSON, and
     // structuredClone is missing on older browsers (Safari < 15.4 etc.).
     setWorking(JSON.parse(JSON.stringify(l)) as Letter);
+    setSelection(emptySelection());
+    setAxis(null);
     setTab("design");
   };
 
@@ -213,6 +267,68 @@ export default function App() {
                 </button>
               </div>
             </div>
+
+            <div className="arrange-bar">
+              <span className="arrange-label">
+                {selectionCount > 0
+                  ? `${selectionCount} selected`
+                  : "whole glyph"}
+                {selectionCount > 0 && (
+                  <button className="link-btn" onClick={clearSelection}>
+                    clear
+                  </button>
+                )}
+              </span>
+
+              <div className="arrange-group" title="Move (selection or whole glyph)">
+                <button className="bar-icon" title="Move left" onClick={() => doMove(-1, 0)}>
+                  ←
+                </button>
+                <button className="bar-icon" title="Move up" onClick={() => doMove(0, -1)}>
+                  ↑
+                </button>
+                <button className="bar-icon" title="Move down" onClick={() => doMove(0, 1)}>
+                  ↓
+                </button>
+                <button className="bar-icon" title="Move right" onClick={() => doMove(1, 0)}>
+                  →
+                </button>
+              </div>
+
+              <div className="arrange-group">
+                <button
+                  className={`overlay-toggle ${axis?.orient === "v" ? "on" : ""}`}
+                  title="Vertical mirror axis"
+                  onClick={() => toggleAxis("v")}
+                >
+                  Axis |
+                </button>
+                <button
+                  className={`overlay-toggle ${axis?.orient === "h" ? "on" : ""}`}
+                  title="Horizontal mirror axis"
+                  onClick={() => toggleAxis("h")}
+                >
+                  Axis —
+                </button>
+                <button
+                  className="bar-btn"
+                  disabled={!axis}
+                  title="Flip across the axis (in place)"
+                  onClick={() => doMirror(false)}
+                >
+                  Flip
+                </button>
+                <button
+                  className="bar-btn"
+                  disabled={!axis}
+                  title="Mirror across the axis and keep a copy"
+                  onClick={() => doMirror(true)}
+                >
+                  Mirror + copy
+                </button>
+              </div>
+            </div>
+
             <div
               className="editor-wrap"
               onWheel={(e) => {
@@ -226,12 +342,18 @@ export default function App() {
                 mode={editMode}
                 showHandles={showHandles}
                 zoom={zoom}
+                selection={selection}
+                onToggleSelect={toggleSelect}
+                axis={axis}
+                onAxisChange={(a2) =>
+                  setAxis((a) => (a ? { ...a, a2 } : a))
+                }
               />
             </div>
             <p className="hint">
               {editMode === "cells"
-                ? "Click or drag cells to build a glyph. Click the dots between neighbouring cells to fuse them into a metaball."
-                : "Click or drag the in-between spots to fill the negative-space shapes between cells."}
+                ? "Click or drag cells to build a glyph. Click the dots between neighbouring cells to cycle the connection: off → fillet → straight. Shift-click to select."
+                : "Click or drag the in-between spots to fill the negative-space shapes. Shift-click to select."}
             </p>
           </main>
 
@@ -250,7 +372,13 @@ export default function App() {
 
               <div className="row gap">
                 <button onClick={saveToLibrary}>Save to library</button>
-                <button onClick={() => setWorking(newLetter(working.settings))}>
+                <button
+                  onClick={() => {
+                    setWorking(newLetter(working.settings));
+                    setSelection(emptySelection());
+                    setAxis(null);
+                  }}
+                >
                   New letter
                 </button>
               </div>

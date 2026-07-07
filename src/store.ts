@@ -214,6 +214,40 @@ export function toggleConnection(letter: Letter, conn: Connection): Letter {
   return { ...letter, connections };
 }
 
+/**
+ * Cycle a connection's state on click: off → fillet → straight → off. Lets
+ * each connection choose its own neck style without a global switch.
+ */
+export function cycleConnection(letter: Letter, conn: Connection): Letter {
+  const target = connKey(conn.a, conn.b);
+  const existing = letter.connections.find(
+    (cn) => connKey(cn.a, cn.b) === target,
+  );
+  if (!existing) {
+    return {
+      ...letter,
+      connections: [
+        ...letter.connections,
+        { a: conn.a, b: conn.b, style: "fillet" },
+      ],
+    };
+  }
+  if ((existing.style ?? "fillet") === "fillet") {
+    return {
+      ...letter,
+      connections: letter.connections.map((cn) =>
+        connKey(cn.a, cn.b) === target ? { ...cn, style: "straight" } : cn,
+      ),
+    };
+  }
+  return {
+    ...letter,
+    connections: letter.connections.filter(
+      (cn) => connKey(cn.a, cn.b) !== target,
+    ),
+  };
+}
+
 // ---- React hooks --------------------------------------------------------
 export function useStore<T>(selector: (s: AppState) => T): T {
   return useSyncExternalStore(
